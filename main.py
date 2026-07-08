@@ -399,38 +399,33 @@ async def main():
                 if event.type == pygame.QUIT:
                     running = False
 
+                result = extra_practice_scene.handle_event(event)
 
-        # if current_scene == SCENE_LOADING:
+                if result == "next_world":
+                    world_data += 1
 
-        #     if not loading_started:
-        #         loading_started = True
+                    pygame.mixer.music.stop()
 
-        #     else:
+                    generator = generate_extra_map(
+                        world_data=world_data,
+                        cell_images=extra_cell_images
+                    )
 
-        #         config = STAGES[current_stage]
-        #         NORMAL_CELL_COUNT = config["normal_cells"]
-        #         ABNORMAL_CELL_COUNT = config["abnormal_cells"]
+                    print(type(generator))
 
-        #         cells, grid, GRID_SIZE, WORLD_WIDTH, WORLD_HEIGHT = await generate_game(
-        #             NORMAL_CELL_COUNT,
-        #             ABNORMAL_CELL_COUNT,
-        #             normal_images,
-        #             abnormal_images)
+                    current_scene = SCENE_LOADING
 
-        #         game_scene = GameScene(
-        #             font,
-        #             WIDTH,
-        #             ABNORMAL_CELL_COUNT,
-        #             cells,
-        #             grid,
-        #             WORLD_WIDTH,
-        #             WORLD_HEIGHT
-        #         )
+                elif result == "retry":
+                    pygame.mixer.music.stop()
 
-        #         current_scene = SCENE_GAME
-        #         play_bgm(GAME_BGM)
+                    generator = generate_extra_map(
+                        world_data=world_data,
+                        cell_images=extra_cell_images
+                    )
 
+                    print(type(generator))
 
+                    current_scene = SCENE_LOADING
 
 
         # -------------------------
@@ -513,6 +508,8 @@ async def main():
             extra_explore_scene.draw(screen, extra_cell_images)
 
         elif current_scene == SCENE_EXTRA_PRACTICE:
+
+            extra_practice_scene.update()
 
             extra_practice_scene.draw(screen)
 

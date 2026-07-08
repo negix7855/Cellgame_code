@@ -537,7 +537,7 @@ class ExtraExploreScene:
 
         for info in self.book_data:
 
-            if self.found_cells.get(info["cell_name"], 0) < 1:
+            if self.found_cells.get(info["cell_name"], 0) < 2:
                 completed = False
                 break
 

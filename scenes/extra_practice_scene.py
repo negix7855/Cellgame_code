@@ -108,14 +108,14 @@ class ExtraPracticeScene:
                     if self.correct_count >= self.PASS_SCORE:
                         self.passed = True
                         self.result_button = Button(
-                            250, 600, 300, 70,
+                            self.width//2-150, self.height//2, 300, 70,
                             "次の世界へ！",
                             self.font
                         )
 
                     else:
                         self.result_button = Button(
-                            250, 600, 300, 70,
+                            self.width//2-150, self.height//2, 300, 70,
                             "もう一度探索へ",
                             self.font
                         )

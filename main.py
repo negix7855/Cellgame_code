@@ -378,7 +378,7 @@ async def main():
                 if event.type == pygame.QUIT:
                     running = False
 
-                result = extra_explore_scene.handle_event(event, WIDTH, HEIGHT)
+                result = extra_explore_scene.handle_event(event)
 
                 if result == "home":
                     current_scene = SCENE_HOME

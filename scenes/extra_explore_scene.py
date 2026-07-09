@@ -14,6 +14,7 @@ class ExtraExploreScene:
 
         self.font = font
 
+        self.width = width
 
         self.camera_x = 0
         self.camera_y = 0
@@ -118,24 +119,24 @@ class ExtraExploreScene:
             font
         )
 
-    def update_layout(self, width, height):
+    def update_layout(self):
 
         self.retry_button.rect = pygame.Rect(
-            width - 260,
+            self.width - 260,
             90,
             250,
             60,
         )
 
         self.giveup_button.rect = pygame.Rect(
-            width - 260,
+            self.width - 260,
             160,
             250,
             60,
         )
 
         self.practice_button.rect = pygame.Rect(
-            width // 2 - 125,
+            self.width // 2 - 125,
             80,
             250,
             60
@@ -153,45 +154,9 @@ class ExtraExploreScene:
 
             elif event.button == 1:
 
-                # if self.retry_button.clicked(event.pos):
-
-                #     self.found_count = 0
-
-                #     self.game_cleared = False
-                #     self.giveup_flg = False
-
-                #     self.camera_x = 0
-                #     self.camera_y = 0
-                #     self.zoom = 0.2
-
-                #     return "menu"
-
                 if self.help_button.clicked(event.pos):
                     self.help_menu_open = not self.help_menu_open
                     return
-
-                # elif self.giveup_button.clicked(event.pos):
-
-                #     if not self.game_cleared:
-
-                #         if not self.confirm_giveup:
-
-                #             self.confirm_giveup = True
-                #             self.show_message("もう一度押すとギブアップ")
-
-                #         else:
-
-                #             for cell in self.cells:
-                #                 if cell.is_target:
-                #                     cell.found = True
-
-                #             self.clear_time = 0
-                #             self.game_cleared = True
-                #             self.giveup_flg = True
-
-                #             self.confirm_giveup = False
-
-                #     return
 
                 world_x = self.camera_x + pos[0] / self.zoom
                 world_y = self.camera_y + pos[1] / self.zoom
@@ -537,7 +502,7 @@ class ExtraExploreScene:
 
         for info in self.book_data:
 
-            if self.found_cells.get(info["cell_name"], 0) < 2:
+            if self.found_cells.get(info["cell_name"], 0) < 3:
                 completed = False
                 break
 

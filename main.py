@@ -1,12 +1,14 @@
 import os
 import pygame
 import asyncio
+import gc
 from scenes.menu_scene import MenuScene
 from scenes.game_scene import GameScene
 from scenes.book_scene import BookScene
 from scenes.home_scene import HomeScene
 from scenes.loading_scene import LoadingScene
 from scenes.difficluty_menu_scene import DiffMenuScene
+from scenes.password_scene import PasswordScene
 from scenes.extra_explore_scene import ExtraExploreScene
 from scenes.extra_practice_scene import ExtraPracticeScene
 from setting import STAGES
@@ -34,8 +36,9 @@ SCENE_DIFFMENU = 1
 SCENE_GAME = 2
 SCENE_BOOK = 3
 SCENE_LOADING = 4
-SCENE_EXTRA_EXPLORE = 5
-SCENE_EXTRA_PRACTICE = 6
+SCENE_PASSWARD = 5
+SCENE_EXTRA_EXPLORE = 6
+SCENE_EXTRA_PRACTICE = 7
 
 current_scene = SCENE_HOME
 book_return_scene = SCENE_DIFFMENU
@@ -201,6 +204,12 @@ loading_scene = LoadingScene(
     font
 )
 
+passward_scene = PasswordScene(
+    WIDTH,
+    HEIGHT,
+    font
+)
+
 extra_explore_scene = None
 
 extra_practice_scene = None
@@ -258,7 +267,6 @@ async def main():
 
         clock.tick(60)
 
-        # if current_scene == SCENE_MENU:
         if current_scene == SCENE_DIFFMENU:
             diff_menu_scene.update_layout(WIDTH, HEIGHT)
 
@@ -266,7 +274,7 @@ async def main():
             game_scene.update_layout(WIDTH, HEIGHT)
 
         elif current_scene == SCENE_EXTRA_EXPLORE:
-            extra_explore_scene.update_layout(WIDTH, HEIGHT)
+            extra_explore_scene.update_layout()
 
         for event in pygame.event.get():
                 
@@ -286,16 +294,18 @@ async def main():
 
                     NormOrExtra = SCENE_EXTRA_EXPLORE
 
-                    pygame.mixer.music.stop()
+                    # pygame.mixer.music.stop()
 
-                    generator = generate_extra_map(
-                        world_data=world_data,
-                        cell_images=extra_cell_images
-                    )
+                    # generator = generate_extra_map(
+                    #     world_data=world_data,
+                    #     cell_images=extra_cell_images
+                    # )
 
-                    print(type(generator))
+                    # print(type(generator))
 
-                    current_scene = SCENE_LOADING
+                    # current_scene = SCENE_LOADING
+
+                    current_scene = SCENE_PASSWARD
 
             elif current_scene == SCENE_DIFFMENU:
 
@@ -347,7 +357,6 @@ async def main():
                     cells = None
                     grid = None
 
-                    import gc
                     gc.collect()
                     current_scene = SCENE_DIFFMENU
                     play_bgm(DIFFMENU_BGM)
@@ -378,7 +387,7 @@ async def main():
                 if event.type == pygame.QUIT:
                     running = False
 
-                result = extra_explore_scene.handle_event(event)
+                result = extra_explore_scene.handle_event(event, WIDTH, HEIGHT)
 
                 if result == "home":
                     current_scene = SCENE_HOME
@@ -394,6 +403,31 @@ async def main():
                         extra_explore_scene.get_found_cells()
                     )
 
+            elif current_scene == SCENE_PASSWARD:
+
+                if event.type == pygame.QUIT:
+                    running = False
+
+                result = passward_scene.handle_event(event)
+
+                if result == "start":
+
+                    pygame.mixer.music.stop()
+
+                    generator = generate_extra_map(
+                        world_data=world_data,
+                        cell_images=extra_cell_images
+                    )
+
+                    print(type(generator))
+
+                    current_scene = SCENE_LOADING
+
+                elif result == "home":
+
+                    current_scene = SCENE_HOME
+                    play_bgm(HOME_BGM)
+
             elif current_scene == SCENE_EXTRA_PRACTICE:
 
                 if event.type == pygame.QUIT:
@@ -403,6 +437,11 @@ async def main():
 
                 if result == "next_world":
                     world_data += 1
+                    extra_practice_scene=None
+                    cells = None
+                    grid = None
+
+                    gc.collect()
 
                     pygame.mixer.music.stop()
 
@@ -416,6 +455,11 @@ async def main():
                     current_scene = SCENE_LOADING
 
                 elif result == "retry":
+                    extra_practice_scene=None
+                    cells = None
+                    grid = None
+
+                    gc.collect()
                     pygame.mixer.music.stop()
 
                     generator = generate_extra_map(
@@ -454,6 +498,7 @@ async def main():
         elif current_scene == SCENE_BOOK:
 
             book_scene.draw(screen)
+
 
         elif current_scene == SCENE_LOADING:
 
@@ -500,6 +545,10 @@ async def main():
 
                     current_scene = SCENE_EXTRA_EXPLORE
                     play_bgm(GAME_BGM)
+
+        elif current_scene == SCENE_PASSWARD:
+
+            passward_scene.draw(screen)
 
         elif current_scene == SCENE_EXTRA_EXPLORE:
 

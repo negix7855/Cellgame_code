@@ -29,10 +29,7 @@ class Cell:
             (width, height)
         )
 
-        self.original_image = pygame.transform.smoothscale(
-            image,
-            (300, 300)
-        )
+        self.source_image = image
 
         self.image = pygame.transform.rotate(
             scaled,

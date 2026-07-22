@@ -236,7 +236,10 @@ class ExtraPracticeScene:
 
         screen.blit(text, text_rect)
 
-        image = self.current_cell.original_image
+        image = pygame.transform.smoothscale(
+            self.current_cell.source_image,
+            (300, 300)
+        )
 
         rect = image.get_rect(
             center=(

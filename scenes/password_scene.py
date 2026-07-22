@@ -54,6 +54,8 @@ class PasswordScene:
 
                 if self.home_button.clicked(event.pos):
 
+                    self.textbox.clear()
+
                     return "home"
 
     def draw(self, screen):

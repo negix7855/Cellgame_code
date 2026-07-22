@@ -1,6 +1,7 @@
 import pygame
 from objects.textbox import TextBox
 from objects.button import Button
+from objects.keyboard import Keyboard
 
 class PasswordScene:
 
@@ -24,13 +25,28 @@ class PasswordScene:
             font
         )
 
+        self.keyboard = Keyboard(
+            width // 2,
+            height // 2 + 50,
+            font
+        )
+
     def handle_event(self, event):
 
-        result = self.textbox.handle_event(event)
+        key = self.keyboard.handle_event(event)
 
-        if result == "notdone":
+        if key == "<-":
 
-            return "start"
+            self.textbox.text = self.textbox.text[:-1]
+
+        elif key == "OK":
+
+            return self.textbox.text
+
+        elif key is not None:
+
+            self.textbox.text += key
+
 
         if event.type == pygame.MOUSEBUTTONDOWN:
 
@@ -57,5 +73,6 @@ class PasswordScene:
         screen.blit(text, text_rect)
 
         self.textbox.draw(screen)
+        self.keyboard.draw(screen)
 
         self.home_button.draw(screen)

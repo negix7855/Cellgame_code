@@ -410,7 +410,7 @@ async def main():
 
                 result = passward_scene.handle_event(event)
 
-                if result == "start":
+                if result == "NOTDONE":
 
                     pygame.mixer.music.stop()
 

@@ -72,7 +72,7 @@ class Cell:
 
             self.image_cache[zoom_key] = scaled_image
 
-            if len(self.image_cache) > 20:
+            if len(self.image_cache) > 30:
                 self.image_cache.clear()
 
         # キャッシュから取得

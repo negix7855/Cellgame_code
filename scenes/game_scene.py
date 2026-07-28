@@ -275,7 +275,7 @@ class GameScene:
             else:
                 self.zoom /= 1.1
 
-            self.zoom = max(0.1, min(self.zoom, 3.0))
+            self.zoom = max(0.1, min(self.zoom, 4.0))
 
         elif event.type == pygame.FINGERDOWN:
 

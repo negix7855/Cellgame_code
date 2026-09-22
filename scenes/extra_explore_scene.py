@@ -225,7 +225,7 @@ class ExtraExploreScene:
             else:
                 self.zoom /= 1.1
 
-            self.zoom = max(0.1, min(self.zoom, 2.0))
+            self.zoom = max(0.1, min(self.zoom, 3.0))
 
         elif event.type == pygame.FINGERDOWN:
 
@@ -278,7 +278,7 @@ class ExtraExploreScene:
 
                         self.zoom *= zoom_ratio
 
-                        self.zoom = max(0.1, min(self.zoom, 1.5))
+                        self.zoom = max(0.1, min(self.zoom, 3.0))
 
                         self.camera_x = world_x - center_x / self.zoom
                         self.camera_y = world_y - center_y / self.zoom

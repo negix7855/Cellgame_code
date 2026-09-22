@@ -11,6 +11,7 @@ from scenes.difficluty_menu_scene import DiffMenuScene
 from scenes.password_scene import PasswordScene
 from scenes.extra_explore_scene import ExtraExploreScene
 from scenes.extra_practice_scene import ExtraPracticeScene
+from scenes.production_scene import ProductionScene
 from setting import STAGES
 from systems.game_generator import generate_game
 from systems.generate_extra_map import generate_extra_map
@@ -39,6 +40,7 @@ SCENE_LOADING = 4
 SCENE_PASSWARD = 5
 SCENE_EXTRA_EXPLORE = 6
 SCENE_EXTRA_PRACTICE = 7
+SCENE_PRODUCTION = 8
 
 current_scene = SCENE_HOME
 book_return_scene = SCENE_DIFFMENU
@@ -151,6 +153,7 @@ extra_cell_images = {
     "SCC_6": pygame.image.load(resource_path("images/extra_prac_cells/SCC_6.png")).convert_alpha(),
     "SCC_7": pygame.image.load(resource_path("images/extra_prac_cells/SCC_7.png")).convert_alpha(),
     "SCC_8": pygame.image.load(resource_path("images/extra_prac_cells/SCC_8.png")).convert_alpha(),
+    "SCC_9": pygame.image.load(resource_path("images/extra_prac_cells/SCC_9.png")).convert_alpha(),
 }
 
 home_background = pygame.image.load(

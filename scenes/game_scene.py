@@ -328,7 +328,7 @@ class GameScene:
 
                         self.zoom *= zoom_ratio
 
-                        self.zoom = max(0.1, min(self.zoom, 1.5))
+                        self.zoom = max(0.1, min(self.zoom, 4.0))
 
                         self.camera_x = world_x - center_x / self.zoom
                         self.camera_y = world_y - center_y / self.zoom

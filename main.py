@@ -1,5 +1,6 @@
 import asyncio
 import gc
+import random
 
 import pygame
 
@@ -11,7 +12,9 @@ from scenes.game_scene import GameScene
 from scenes.home_scene import HomeScene
 from scenes.loading_scene import LoadingScene
 from scenes.password_scene import PasswordScene
-from scenes.production_scene import ProductionScene
+from scenes.production_intro_scene import ProductionIntroScene
+from scenes.production_result_scene import ProductionResultScene
+from scenes.production_scene import EXAM_CASE_COUNT, ProductionScene
 from setting import STAGES
 from systems.game_generator import generate_game
 from systems.generate_extra_map import generate_extra_map
@@ -30,6 +33,12 @@ BGM_VOLUME = 0.5
 
 # パスワード画面でこの文字列を入力するとエクストラモードが始まる
 EXTRA_PASSWORD = "NOTDONE"
+
+# エクストラの練習問題の最後の世界（これをクリアすると本番へ進む）
+LAST_PRACTICE_WORLD = 5
+
+# 本番の出題数（症例は毎回ランダムに選ぶので重複することがある）
+PRODUCTION_QUESTION_COUNT = 5
 
 # エクストラモードの細胞画像の種類と枚数
 EXTRA_CELL_KINDS = {
@@ -53,6 +62,8 @@ SCENE_PASSWORD = 5
 SCENE_EXTRA_EXPLORE = 6
 SCENE_EXTRA_PRACTICE = 7
 SCENE_PRODUCTION = 8
+SCENE_PRODUCTION_INTRO = 9
+SCENE_PRODUCTION_RESULT = 10
 
 # current_scene = SCENE_HOME
 current_scene = SCENE_HOME
@@ -116,6 +127,13 @@ extra_cell_images = {
     for i in range(1, count + 1)
 }
 
+# 本番用の細胞画像
+exam_cell_images = {
+    f"{kind}_{i}": load_image(f"images/extra_cells/{kind}_{i}.png")
+    for kind, count in EXTRA_CELL_KINDS.items()
+    for i in range(1, count + 1)
+}
+
 home_background = load_image("images/background/home.png")
 diffmenu_background = load_image("images/background/diffmenu.jpg", alpha=False)
 
@@ -143,6 +161,15 @@ def play_bgm(path):
     pygame.mixer.music.set_volume(BGM_VOLUME)
     pygame.mixer.music.play(-1)
 
+
+def stop_bgm():
+    """BGM を止める（次の play_bgm で同じ曲でも最初から流れるようにする）"""
+    global current_bgm
+
+    current_bgm = None
+
+    pygame.mixer.music.stop()
+
 # =========================
 # シーン初期化
 # =========================
@@ -152,8 +179,7 @@ diff_menu_scene = DiffMenuScene(font, WIDTH, HEIGHT, diffmenu_background)
 book_scene = BookScene(font, WIDTH, HEIGHT, book_images)
 loading_scene = LoadingScene(font)
 password_scene = PasswordScene(font, WIDTH, HEIGHT)
-
-production_scene = None
+production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)
 
 
 def create_game_scene(generated, stage, width):
@@ -183,6 +209,32 @@ def create_extra_explore_scene(generated, width):
         distribution
     )
 
+
+def create_production_generator(case_number):
+    return generate_extra_map(
+        world_data=case_number,
+        cell_images=exam_cell_images,
+        data_folder="exam",
+        file_prefix="case"
+    )
+
+
+def create_production_scene(generated, case_number, question_number, width):
+    cells, grid, _, world_width, world_height, distribution = generated
+
+    return ProductionScene(
+        font,
+        width,
+        cells,
+        grid,
+        world_width,
+        world_height,
+        distribution,
+        case_number,
+        question_number,
+        PRODUCTION_QUESTION_COUNT
+    )
+
 # =========================
 # メインループ
 # =========================
@@ -194,8 +246,14 @@ async def main():
     game_scene = None
     extra_explore_scene = None
     extra_practice_scene = None
+    production_scene = None
+    production_result_scene = None
 
     current_stage = None
+
+    # 本番で出題する症例番号のリストと、回答済みの結果
+    production_cases = []
+    production_results = []
 
     # ロード中のジェネレータと、ロード完了後に移るシーン
     generator = None
@@ -226,6 +284,9 @@ async def main():
         elif current_scene == SCENE_EXTRA_EXPLORE:
             extra_explore_scene.update_layout()
 
+        elif current_scene == SCENE_PRODUCTION:
+            production_scene.update_layout(width, height)
+
         # -------------------------
         # イベント処理
         # -------------------------
@@ -251,7 +312,7 @@ async def main():
                 action = result["action"] if result else None
 
                 if action == "start":
-                    pygame.mixer.music.stop()
+                    stop_bgm()
 
                     current_stage = result["stage"]
                     config = STAGES[current_stage]
@@ -303,7 +364,7 @@ async def main():
                 result = password_scene.handle_event(event)
 
                 if result == EXTRA_PASSWORD:
-                    pygame.mixer.music.stop()
+                    stop_bgm()
 
                     generator = generate_extra_map(
                         world_data=world_data,
@@ -337,14 +398,21 @@ async def main():
             elif current_scene == SCENE_EXTRA_PRACTICE:
                 result = extra_practice_scene.handle_event(event)
 
-                if result in ("next_world", "retry"):
+                if result == "next_world" and world_data >= LAST_PRACTICE_WORLD:
+                    # 全世界の練習問題をクリアしたら本番の案内へ
+                    extra_practice_scene = None
+                    gc.collect()
+
+                    current_scene = SCENE_PRODUCTION_INTRO
+
+                elif result in ("next_world", "retry"):
                     if result == "next_world":
                         world_data += 1
 
                     extra_practice_scene = None
                     gc.collect()
 
-                    pygame.mixer.music.stop()
+                    stop_bgm()
 
                     generator = generate_extra_map(
                         world_data=world_data,
@@ -353,8 +421,55 @@ async def main():
 
                     current_scene = SCENE_LOADING
 
+            elif current_scene == SCENE_PRODUCTION_INTRO:
+                result = production_intro_scene.handle_event(event)
+
+                if result == "start":
+                    production_cases = random.choices(
+                        range(1, EXAM_CASE_COUNT + 1),
+                        k=PRODUCTION_QUESTION_COUNT
+                    )
+                    production_results = []
+
+                    generator = create_production_generator(production_cases[0])
+                    loading_target = SCENE_PRODUCTION
+                    current_scene = SCENE_LOADING
+
             elif current_scene == SCENE_PRODUCTION:
-                result = production_scene.handle_event(event)
+                result = production_scene.handle_event(event, width, height)
+
+                if result == "next":
+                    production_results.append(production_scene.get_result())
+
+                    production_scene = None
+                    gc.collect()
+
+                    if len(production_results) < len(production_cases):
+                        generator = create_production_generator(
+                            production_cases[len(production_results)]
+                        )
+                        current_scene = SCENE_LOADING
+
+                    else:
+                        production_result_scene = ProductionResultScene(
+                            font,
+                            width,
+                            height,
+                            production_results
+                        )
+                        current_scene = SCENE_PRODUCTION_RESULT
+
+            elif current_scene == SCENE_PRODUCTION_RESULT:
+                result = production_result_scene.handle_event(event)
+
+                if result == "home":
+                    production_result_scene = None
+
+                    # 次にエクストラを遊ぶ時は最初の世界から
+                    world_data = 1
+
+                    current_scene = SCENE_HOME
+                    play_bgm(HOME_BGM)
 
         # -------------------------
         # 更新・描画
@@ -390,6 +505,17 @@ async def main():
                     extra_explore_scene = create_extra_explore_scene(finished.value, width)
                     current_scene = SCENE_EXTRA_EXPLORE
 
+                elif loading_target == SCENE_PRODUCTION:
+                    question_number = len(production_results) + 1
+
+                    production_scene = create_production_scene(
+                        finished.value,
+                        production_cases[question_number - 1],
+                        question_number,
+                        width
+                    )
+                    current_scene = SCENE_PRODUCTION
+
                 play_bgm(GAME_BGM)
 
         elif current_scene == SCENE_PASSWORD:
@@ -402,6 +528,16 @@ async def main():
         elif current_scene == SCENE_EXTRA_PRACTICE:
             extra_practice_scene.update()
             extra_practice_scene.draw(screen)
+
+        elif current_scene == SCENE_PRODUCTION_INTRO:
+            production_intro_scene.draw(screen)
+
+        elif current_scene == SCENE_PRODUCTION:
+            production_scene.update()
+            production_scene.draw(screen)
+
+        elif current_scene == SCENE_PRODUCTION_RESULT:
+            production_result_scene.draw(screen)
 
         pygame.display.flip()
 

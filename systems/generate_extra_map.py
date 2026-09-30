@@ -15,9 +15,10 @@ MAX_PLACE_ATTEMPTS = 500
 # マップ生成（エクストラモード）
 # =========================
 
-def generate_extra_map(world_data, cell_images, data_folder="practice"):
+def generate_extra_map(world_data, cell_images, data_folder="practice", file_prefix="world"):
     """CSV の分布に従って細胞を配置するジェネレータ。
 
+    data/{data_folder}/{file_prefix}{world_data}.csv を読み込む。
     進捗 (0.0〜1.0) を yield し、完了時に
     (cells, grid, GRID_SIZE, world_width, world_height, distribution) を返す。
     """
@@ -25,7 +26,7 @@ def generate_extra_map(world_data, cell_images, data_folder="practice"):
     grid = {}
 
     distribution = load_distribution(
-        f"data/{data_folder}/world{world_data}.csv"
+        f"data/{data_folder}/{file_prefix}{world_data}.csv"
     )
 
     # -------------------------

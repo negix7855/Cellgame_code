@@ -1,5 +1,7 @@
 import pygame
 import math
+from objects.button import Button
+
 
 class ProductionScene:
 
@@ -11,7 +13,8 @@ class ProductionScene:
             grid,
             world_width,
             world_height,
-            distribution
+            distribution,
+            world_data
         ):
         self.font = font
 
@@ -23,6 +26,10 @@ class ProductionScene:
 
         self.world_width = world_width
         self.world_height = world_height
+
+        self.distribution = distribution
+
+        self.world_data = world_data
 
 
         self.camera_x = 0
@@ -43,7 +50,6 @@ class ProductionScene:
         self.pinch_distance = None
 
 
-
         self.minimap_width = 220
         self.minimap_height = 220
 
@@ -52,13 +58,35 @@ class ProductionScene:
 
         self.minimap_margin = 20
 
+        self.answer_buttons = []
 
-        self.distribution = distribution
+        self.answer_choices = [
+            "NILM 正常",
+            "NILM 感染症・炎症",
+            "LSIL",
+            "HSIL",
+            "SCC"
+        ]
 
         self.question_number = 1
 
         self.answered = False
         self.correct_answer = None
+        self.answer_reslut = None
+
+        start_y = 100
+
+        for i, answer in enumerate(self.answer_choices):
+            button = Button(
+                self.width - 280,
+                start_y + i * 70,
+                250,
+                60,
+                answer,
+                self.font
+            )
+
+        self.answer_buttons.append(button)
 
 
     def handle_event(self, event, width, height):
@@ -69,7 +97,28 @@ class ProductionScene:
 
         if event.type == pygame.MOUSEBUTTONDOWN:
 
-            if event.button == 3:
+            if event.button == 1:
+
+                for button in self.answer_buttons:
+
+                    if button.clicked(event.pos):
+
+                        self.ansered = True
+
+                        if button.text == self.correct_answer:
+
+                            self.answer_result = "正解"
+
+                        else:
+
+                            self.answer_reslut = "不正解"
+
+                        print(button.text)
+                        print(self.answer_reslut)
+
+                        break
+
+            elif event.button == 3:
 
                 self.dragging = True
                 self.last_mouse_pos = event.pos
@@ -244,6 +293,14 @@ class ProductionScene:
                 height,
                 self.zoom
             )
+
+        # =========================
+        # 回答ボタン
+        # =========================
+
+        for button in self.answer_buttons:
+
+            button.draw(screen)
 
         # =========================
         # ミニマップ

@@ -1,16 +1,13 @@
 import csv
 
-def load_distribution(path):
 
-    cells = []
+def load_distribution(path):
+    """細胞の分布 CSV を読み込み、1行ごとの辞書のリストを返す"""
+    distribution = []
 
     with open(path, encoding="utf-8-sig") as f:
-
-        reader = csv.DictReader(f)
-
-        for row in reader:
-
-            cells.append({
+        for row in csv.DictReader(f):
+            distribution.append({
                 "cell_name": row["cell_name"],
                 "count": int(row["count"]),
                 "width": int(row["width"]),
@@ -18,4 +15,4 @@ def load_distribution(path):
                 "display_name": row["display_name"]
             })
 
-    return cells
+    return distribution

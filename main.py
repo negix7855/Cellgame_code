@@ -4,6 +4,7 @@ import random
 
 import pygame
 
+from objects.slide_viewer import SlideViewer
 from scenes.book_scene import BookScene
 from scenes.difficulty_menu_scene import DiffMenuScene
 from scenes.extra_explore_scene import ExtraExploreScene
@@ -29,7 +30,7 @@ SCREEN_HEIGHT = 1080
 
 FPS = 60
 
-BGM_VOLUME = 0.5
+BGM_VOLUME = 0.3
 
 # パスワード画面でこの文字列を入力するとエクストラモードが始まる
 EXTRA_PASSWORD = "NOTDONE"
@@ -41,6 +42,11 @@ LAST_PRACTICE_WORLD = 5
 PRODUCTION_QUESTION_COUNT = 5
 
 # エクストラモードの細胞画像の種類と枚数
+# エクストラの図鑑のページ数（images/extra_book/world{n}/book_{i}.jpg）
+EXTRA_BOOK_PAGES = {
+    1: 9,
+}
+
 EXTRA_CELL_KINDS = {
     "NILM_norm": 9,
     "NILM_abnorm": 9,
@@ -64,6 +70,8 @@ SCENE_EXTRA_PRACTICE = 7
 SCENE_PRODUCTION = 8
 SCENE_PRODUCTION_INTRO = 9
 SCENE_PRODUCTION_RESULT = 10
+SCENE_NORMAL_HELP = 11
+SCENE_EXTRA_BOOK = 12
 
 # current_scene = SCENE_HOME
 current_scene = SCENE_HOME
@@ -137,6 +145,23 @@ exam_cell_images = {
 home_background = load_image("images/background/home.png")
 diffmenu_background = load_image("images/background/diffmenu.jpg", alpha=False)
 
+# ノーマルモードの遊び方のスライド
+# buttons はスライド画像（1920x1080）に描かれているボタンの位置
+normal_help_slides = SlideViewer([
+    {
+        "image": load_image("images/help/help_1.jpg", alpha=False),
+        "buttons": {"next": (1535, 985, 360, 80)},
+    },
+    {
+        "image": load_image("images/help/help_2.jpg", alpha=False),
+        "buttons": {"prev": (25, 965, 370, 90), "next": (1525, 965, 375, 90)},
+    },
+    {
+        "image": load_image("images/help/help_3.jpg", alpha=False),
+        "buttons": {"prev": (20, 985, 205, 85), "close": (1690, 985, 210, 85)},
+    },
+])
+
 # =========================
 # BGM
 # =========================
@@ -177,6 +202,17 @@ def stop_bgm():
 home_scene = HomeScene(font, WIDTH, HEIGHT, home_background)
 diff_menu_scene = DiffMenuScene(font, WIDTH, HEIGHT, diffmenu_background)
 book_scene = BookScene(font, WIDTH, HEIGHT, book_images)
+
+# エクストラの図鑑（世界ごと）
+extra_book_scenes = {
+    world: BookScene(
+        font,
+        WIDTH,
+        HEIGHT,
+        [load_image(f"images/extra_book/world{world}/book_{i}.jpg", alpha=False) for i in range(1, pages + 1)]
+    )
+    for world, pages in EXTRA_BOOK_PAGES.items()
+}
 loading_scene = LoadingScene(font)
 password_scene = PasswordScene(font, WIDTH, HEIGHT)
 production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)
@@ -262,6 +298,9 @@ async def main():
     # 図鑑から戻る先のシーン
     book_return_scene = SCENE_DIFFMENU
 
+    # ノーマルモードの遊び方を一度見たかどうか（起動中のみ記憶する）
+    normal_help_seen = False
+
     running = True
 
     play_bgm(HOME_BGM)
@@ -300,8 +339,15 @@ async def main():
 
                 if result == "normal":
                     loading_target = SCENE_GAME
-                    current_scene = SCENE_DIFFMENU
-                    play_bgm(DIFFMENU_BGM)
+
+                    if normal_help_seen:
+                        current_scene = SCENE_DIFFMENU
+                        play_bgm(DIFFMENU_BGM)
+
+                    else:
+                        # 初回は遊び方を見せてから難易度選択へ
+                        normal_help_slides.open()
+                        current_scene = SCENE_NORMAL_HELP
 
                 elif result == "extra":
                     loading_target = SCENE_EXTRA_EXPLORE
@@ -329,6 +375,10 @@ async def main():
                 elif action == "book":
                     book_return_scene = SCENE_DIFFMENU
                     current_scene = SCENE_BOOK
+
+                elif action == "help":
+                    normal_help_slides.open()
+                    current_scene = SCENE_NORMAL_HELP
 
                 elif action == "home":
                     current_scene = SCENE_HOME
@@ -360,6 +410,12 @@ async def main():
                     elif current_scene == SCENE_GAME:
                         play_bgm(GAME_BGM)
 
+            elif current_scene == SCENE_EXTRA_BOOK:
+                result = extra_book_scenes[world_data].handle_event(event)
+
+                if result == "menu":
+                    current_scene = SCENE_EXTRA_EXPLORE
+
             elif current_scene == SCENE_PASSWORD:
                 result = password_scene.handle_event(event)
 
@@ -383,6 +439,11 @@ async def main():
                 if result == "home":
                     current_scene = SCENE_HOME
                     play_bgm(HOME_BGM)
+
+                elif result == "book":
+                    # 図鑑がまだ用意されていない世界では何もしない
+                    if world_data in extra_book_scenes:
+                        current_scene = SCENE_EXTRA_BOOK
 
                 elif result == "practice":
                     current_scene = SCENE_EXTRA_PRACTICE
@@ -471,6 +532,15 @@ async def main():
                     current_scene = SCENE_HOME
                     play_bgm(HOME_BGM)
 
+            elif current_scene == SCENE_NORMAL_HELP:
+                result = normal_help_slides.handle_event(event, width, height)
+
+                if result == "close":
+                    normal_help_seen = True
+
+                    current_scene = SCENE_DIFFMENU
+                    play_bgm(DIFFMENU_BGM)
+
         # -------------------------
         # 更新・描画
         # -------------------------
@@ -487,6 +557,9 @@ async def main():
 
         elif current_scene == SCENE_BOOK:
             book_scene.draw(screen)
+
+        elif current_scene == SCENE_EXTRA_BOOK:
+            extra_book_scenes[world_data].draw(screen)
 
         elif current_scene == SCENE_LOADING:
             loading_scene.draw(screen)
@@ -538,6 +611,9 @@ async def main():
 
         elif current_scene == SCENE_PRODUCTION_RESULT:
             production_result_scene.draw(screen)
+
+        elif current_scene == SCENE_NORMAL_HELP:
+            normal_help_slides.draw(screen)
 
         pygame.display.flip()
 

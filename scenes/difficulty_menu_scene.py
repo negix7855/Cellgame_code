@@ -22,6 +22,7 @@ class DiffMenuScene:
         self.stage_rects = [pygame.Rect(0, 0, 180, 80) for _ in range(STAGE_COUNT)]
         self.start_rect = pygame.Rect(width // 2 - 100, height // 2 + 100, 285, 100)
         self.book_rect = pygame.Rect(width // 2 - 120, height - 280, 240, 80)
+        self.help_rect = pygame.Rect(width // 2 - 415, height // 2 + 115, 130, 100)
         self.home_rect = pygame.Rect(20, 20, 240, 80)
 
         self.select_se = pygame.mixer.Sound(resource_path("sounds/select_diffmenu.ogg"))
@@ -55,6 +56,9 @@ class DiffMenuScene:
         self.book_rect.topleft = (width // 2 - 255, height // 2 + 115)
         self.book_rect.size = (300, 100)
 
+        self.help_rect.topleft = (width // 2 - 415, height // 2 + 115)
+        self.help_rect.size = (130, 100)
+
         self.home_rect.topleft = (50, 40)
         self.home_rect.size = (270, 70)
 
@@ -75,6 +79,10 @@ class DiffMenuScene:
         elif self.book_rect.collidepoint(event.pos):
             self.select_se.play()
             return {"action": "book"}
+
+        elif self.help_rect.collidepoint(event.pos):
+            self.help_se.play()
+            return {"action": "help"}
 
         elif self.home_rect.collidepoint(event.pos):
             self.select_se.play()

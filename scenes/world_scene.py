@@ -47,6 +47,9 @@ class WorldScene:
         self.last_mouse_pos = (0, 0)
         self.last_click_time = 0
 
+        # 左クリックを押した位置（離した時に細胞を判定するため）
+        self.mouse_press_pos = None
+
         # タッチ操作
         self.touch_dragging = False
         self.touch_start_pos = (0, 0)
@@ -97,11 +100,21 @@ class WorldScene:
                 self.last_mouse_pos = event.pos
 
             elif event.button == 1:
+                if getattr(event, "touch", False):
+                    # スマホのタッチから作られたマウスイベント。
+                    # 細胞の判定は指を離した時（FINGERUP）に行うので、ここではしない
+                    self.mouse_press_pos = None
+                else:
+                    self.mouse_press_pos = event.pos
+
                 return self.handle_left_click(event.pos)
 
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 3:
                 self.dragging = False
+
+            elif event.button == 1:
+                self.handle_left_release(event.pos)
 
         elif event.type == pygame.MOUSEMOTION:
             if self.dragging:
@@ -131,8 +144,24 @@ class WorldScene:
             self.handle_finger_up(event, width, height)
 
     def handle_left_click(self, pos):
-        """左クリック時の処理。シーンごとに実装する"""
+        """左クリックを押した時のボタン処理。シーンごとに実装する。
+
+        細胞の判定はここではなく、離した時（handle_left_release）に行う。
+        """
         raise NotImplementedError
+
+    def handle_left_release(self, pos):
+        """左クリックを離した時、ほとんど動いていなければ細胞を判定する"""
+        if self.mouse_press_pos is None:
+            return
+
+        dx = pos[0] - self.mouse_press_pos[0]
+        dy = pos[1] - self.mouse_press_pos[1]
+
+        self.mouse_press_pos = None
+
+        if math.sqrt(dx * dx + dy * dy) <= TAP_MOVE_THRESHOLD:
+            self.check_cell_click(self.screen_to_world(pos))
 
     def handle_help_menu_click(self, pos):
         """ヘルプメニューのボタン処理。

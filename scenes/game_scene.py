@@ -74,8 +74,6 @@ class GameScene(WorldScene):
             self.help_menu_open = not self.help_menu_open
             return None
 
-        self.check_cell_click(self.screen_to_world(pos))
-
         if self.help_menu_open:
             handled, result = self.handle_help_menu_click(pos)
 

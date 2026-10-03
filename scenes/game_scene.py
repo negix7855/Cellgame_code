@@ -39,6 +39,9 @@ class GameScene(WorldScene):
 
         self.hint_button = Button(width - 220, 100, 200, 60, "ヒント", font)
 
+        # クリア（ギブアップ）後に画面中央に出す、難易度選択へ戻るボタン
+        self.back_to_menu_button = Button(width // 2 - 150, 270, 300, 70, "難易度選択へ戻る", font)
+
         self.correct_sound = pygame.mixer.Sound(resource_path("sounds/correct.ogg"))
         self.miss_sound = pygame.mixer.Sound(resource_path("sounds/miss.ogg"))
 
@@ -53,11 +56,17 @@ class GameScene(WorldScene):
             60
         )
 
+        self.back_to_menu_button.rect = pygame.Rect(width // 2 - 150, 270, 300, 70)
+
     # =========================
     # イベント処理
     # =========================
 
     def handle_left_click(self, pos):
+        if self.game_cleared and self.back_to_menu_button.clicked(pos):
+            self.reset()
+            return "menu"
+
         if self.hint_button.clicked(pos):
             self.use_hint()
 
@@ -175,6 +184,9 @@ class GameScene(WorldScene):
         ):
             code_text = self.font.render(EXTRA_CODE, True, (255, 0, 255))
             screen.blit(code_text, code_text.get_rect(center=(width // 2, 220)))
+
+        if self.game_cleared:
+            self.back_to_menu_button.draw(screen)
 
     def draw_minimap(self, screen, width, height):
         super().draw_minimap(screen, width, height)

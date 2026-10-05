@@ -18,9 +18,12 @@ from scenes.password_scene import PasswordScene
 from scenes.production_intro_scene import ProductionIntroScene
 from scenes.production_result_scene import ProductionResultScene
 from scenes.production_scene import EXAM_CASE_COUNT, ProductionScene
+from scenes.ranking_scene import RankingScene
+from scenes.ranking_submit_scene import RankingSubmitScene
 from setting import STAGES
 from systems.game_generator import generate_game
 from systems.generate_extra_map import generate_extra_map
+from systems.ranking_api import make_details
 from systems.resource import resource_path
 
 # =========================
@@ -79,6 +82,8 @@ SCENE_PRODUCTION_RESULT = 10
 SCENE_NORMAL_HELP = 11
 SCENE_EXTRA_BOOK = 12
 SCENE_EXTRA_MENU = 13
+SCENE_RANKING_SUBMIT = 14
+SCENE_RANKING = 15
 
 # current_scene = SCENE_HOME
 current_scene = SCENE_HOME
@@ -312,6 +317,8 @@ async def main():
     extra_practice_scene = None
     production_scene = None
     production_result_scene = None
+    ranking_submit_scene = None
+    ranking_scene = None
 
     current_stage = None
 
@@ -332,6 +339,13 @@ async def main():
 
     # ノーマルモードの遊び方を一度見たかどうか（起動中のみ記憶する）
     normal_help_seen = False
+
+    # ランキングに前回送信した時の入力（起動中のみ記憶する）
+    last_nickname = ""
+    last_prefecture = None
+
+    # ランキング画面を閉じた時に戻るシーン
+    ranking_return_scene = SCENE_EXTRA_MENU
 
     running = True
 
@@ -483,6 +497,11 @@ async def main():
                     extra_book_return_scene = SCENE_EXTRA_MENU
                     current_scene = SCENE_EXTRA_BOOK
 
+                elif action == "ranking":
+                    ranking_scene = RankingScene(font, width, height)
+                    ranking_return_scene = SCENE_EXTRA_MENU
+                    current_scene = SCENE_RANKING
+
                 elif action == "home":
                     current_scene = SCENE_HOME
                     play_bgm(HOME_BGM)
@@ -588,12 +607,60 @@ async def main():
             elif current_scene == SCENE_PRODUCTION_RESULT:
                 result = production_result_scene.handle_event(event)
 
-                if result == "menu":
+                if result == "submit":
+                    ranking_submit_scene = RankingSubmitScene(
+                        font,
+                        width,
+                        height,
+                        production_result_scene.total_score,
+                        make_details(production_results),
+                        last_nickname,
+                        last_prefecture
+                    )
+                    current_scene = SCENE_RANKING_SUBMIT
+
+                elif result == "menu":
                     production_result_scene = None
 
                     extra_menu_scene.notice = ""
                     current_scene = SCENE_EXTRA_MENU
                     play_bgm(HOME_BGM)
+
+            elif current_scene == SCENE_RANKING_SUBMIT:
+                result = ranking_submit_scene.handle_event(event)
+
+                if result in ("back", "ranking"):
+                    if ranking_submit_scene.succeeded:
+                        # 同じ結果は二度送れないようにし、入力は次回のために覚えておく
+                        production_result_scene.mark_submitted()
+
+                        last_nickname = ranking_submit_scene.textbox.text
+                        last_prefecture = ranking_submit_scene.prefecture
+
+                    if result == "ranking":
+                        submitted = ranking_submit_scene.result
+
+                        ranking_scene = RankingScene(
+                            font,
+                            width,
+                            height,
+                            highlight_id=submitted["id"],
+                            highlight_rank=submitted["rank"]
+                        )
+                        ranking_return_scene = SCENE_PRODUCTION_RESULT
+                        current_scene = SCENE_RANKING
+
+                    else:
+                        current_scene = SCENE_PRODUCTION_RESULT
+
+                    ranking_submit_scene = None
+
+            elif current_scene == SCENE_RANKING:
+                result = ranking_scene.handle_event(event)
+
+                if result == "back":
+                    ranking_scene = None
+                    current_scene = ranking_return_scene
 
             elif current_scene == SCENE_NORMAL_HELP:
                 result = normal_help_slides.handle_event(event, width, height)
@@ -678,6 +745,12 @@ async def main():
 
         elif current_scene == SCENE_PRODUCTION_RESULT:
             production_result_scene.draw(screen)
+
+        elif current_scene == SCENE_RANKING_SUBMIT:
+            ranking_submit_scene.draw(screen)
+
+        elif current_scene == SCENE_RANKING:
+            ranking_scene.draw(screen)
 
         elif current_scene == SCENE_NORMAL_HELP:
             normal_help_slides.draw(screen)

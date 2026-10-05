@@ -44,6 +44,7 @@ class ExtraMenuScene:
         ]
 
         self.production_button = Button(0, 0, 360, 100, "本番問題に挑戦", font)
+        self.ranking_button = Button(0, 0, 360, 80, "ランキングを見る", font)
 
         # 図鑑メニュー（「図鑑」を押すと世界ごとのボタンが開く）
         self.book_menu_open = False
@@ -70,6 +71,7 @@ class ExtraMenuScene:
             x += WORLD_BUTTON_WIDTH + WORLD_BUTTON_GAP
 
         self.production_button.rect = pygame.Rect(width // 2 - 180, PRODUCTION_BUTTON_Y, 360, 100)
+        self.ranking_button.rect = pygame.Rect(width // 2 - 180, PRODUCTION_BUTTON_Y + 130, 360, 80)
 
         # 図鑑ボタンは右上、世界ごとのボタンはその下に縦に並べる
         x = width - BOOK_BUTTON_WIDTH - 10
@@ -107,6 +109,10 @@ class ExtraMenuScene:
             self.select_se.play()
             return {"action": "production"}
 
+        if self.ranking_button.clicked(event.pos):
+            self.select_se.play()
+            return {"action": "ranking"}
+
         if self.home_button.clicked(event.pos):
             self.select_se.play()
             return {"action": "home"}
@@ -137,6 +143,7 @@ class ExtraMenuScene:
         screen.blit(production_label, production_label.get_rect(center=(width // 2, PRODUCTION_LABEL_Y)))
 
         self.production_button.draw(screen)
+        self.ranking_button.draw(screen)
         self.home_button.draw(screen)
 
         self.book_button.draw(screen)

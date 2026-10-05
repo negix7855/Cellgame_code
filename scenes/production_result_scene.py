@@ -16,13 +16,26 @@ class ProductionResultScene:
         self.correct_count = sum(1 for r in results if r["is_correct"])
         self.total_score = sum(r["score"] for r in results)
 
-        self.menu_button = Button(width // 2 - 150, height - 180, 300, 80, "選択画面に戻る", font)
+        # ランキングに送信したか（送信後は二重に送れないようにする）
+        self.submitted = False
+
+        self.submit_button = Button(width // 2 - 320, height - 180, 300, 80, "ランキングに送信", font)
+        self.menu_button = Button(width // 2 + 20, height - 180, 300, 80, "選択画面に戻る", font)
 
     def update_layout(self, width, height):
-        self.menu_button.rect = pygame.Rect(width // 2 - 150, height - 180, 300, 80)
+        self.submit_button.rect = pygame.Rect(width // 2 - 320, height - 180, 300, 80)
+        self.menu_button.rect = pygame.Rect(width // 2 + 20, height - 180, 300, 80)
+
+    def mark_submitted(self):
+        self.submitted = True
+        self.submit_button.text = "送信済み"
 
     def handle_event(self, event):
+        """「ランキングに送信」で "submit"、「選択画面に戻る」で "menu" を返す"""
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if not self.submitted and self.submit_button.clicked(event.pos):
+                return "submit"
+
             if self.menu_button.clicked(event.pos):
                 return "menu"
 
@@ -67,4 +80,6 @@ class ProductionResultScene:
             screen.blit(text, text.get_rect(center=(width // 2, y)))
             y += 70
 
+        # 送信済みのボタンは押せないので暗く表示する
+        self.submit_button.draw(screen, (120, 120, 120) if self.submitted else (180, 180, 180))
         self.menu_button.draw(screen)

@@ -1,5 +1,6 @@
 import asyncio
 import gc
+import os
 import random
 
 import pygame
@@ -42,11 +43,6 @@ LAST_PRACTICE_WORLD = 5
 PRODUCTION_QUESTION_COUNT = 5
 
 # エクストラモードの細胞画像の種類と枚数
-# エクストラの図鑑のページ数（images/extra_book/world{n}/book_{i}.jpg）
-EXTRA_BOOK_PAGES = {
-    1: 9,
-}
-
 EXTRA_CELL_KINDS = {
     "NILM_norm": 9,
     "NILM_abnorm": 9,
@@ -203,16 +199,29 @@ home_scene = HomeScene(font, WIDTH, HEIGHT, home_background)
 diff_menu_scene = DiffMenuScene(font, WIDTH, HEIGHT, diffmenu_background)
 book_scene = BookScene(font, WIDTH, HEIGHT, book_images)
 
-# エクストラの図鑑（世界ごと）
-extra_book_scenes = {
-    world: BookScene(
-        font,
-        WIDTH,
-        HEIGHT,
-        [load_image(f"images/extra_book/world{world}/book_{i}.jpg", alpha=False) for i in range(1, pages + 1)]
-    )
-    for world, pages in EXTRA_BOOK_PAGES.items()
-}
+
+def load_extra_book_images(world):
+    """images/extra_book/world{n}/book_1.jpg から順に、存在するページを読み込む"""
+    images = []
+
+    while True:
+        path = f"images/extra_book/world{world}/book_{len(images) + 1}.jpg"
+
+        if not os.path.exists(resource_path(path)):
+            return images
+
+        images.append(load_image(path, alpha=False))
+
+
+# エクストラの図鑑（世界ごと。画像が1枚もない世界は図鑑なし）
+extra_book_scenes = {}
+
+for world in range(1, LAST_PRACTICE_WORLD + 1):
+    extra_book_images = load_extra_book_images(world)
+
+    if extra_book_images:
+        extra_book_scenes[world] = BookScene(font, WIDTH, HEIGHT, extra_book_images)
+
 loading_scene = LoadingScene(font)
 password_scene = PasswordScene(font, WIDTH, HEIGHT)
 production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)

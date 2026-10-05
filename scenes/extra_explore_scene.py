@@ -6,7 +6,7 @@ from objects.button import Button
 from scenes.world_scene import WorldScene
 
 # 練習問題に進むのに必要な、各種類の発見数
-REQUIRED_FOUND_COUNT = 3
+REQUIRED_FOUND_COUNT = 1
 
 BOOK_ICON_SIZE = 150
 BOOK_ICON_GAP = 200
@@ -155,7 +155,7 @@ class ExtraExploreScene(WorldScene):
 
             screen.blit(icon, (x, y))
 
-            text = self.font.render(f"{count}個発見", True, (0, 0, 0))
+            text = self.font.render(f"{count}個発見", True, (255, 255, 255))
             screen.blit(text, (x, y + 155))
 
             x += BOOK_ICON_GAP

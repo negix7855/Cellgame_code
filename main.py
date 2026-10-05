@@ -234,7 +234,7 @@ for world in range(1, LAST_PRACTICE_WORLD + 1):
         extra_book_scenes[world] = BookScene(font, WIDTH, HEIGHT, extra_book_images)
 
 loading_scene = LoadingScene(font)
-password_scene = PasswordScene(font, WIDTH, HEIGHT)
+password_scene = PasswordScene(font, WIDTH, HEIGHT, EXTRA_PASSWORD)
 extra_menu_scene = ExtraMenuScene(
     font,
     WIDTH,

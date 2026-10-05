@@ -11,11 +11,11 @@ EXAM_CASE_COUNT = 5
 
 # 症例番号と正解の対応
 CASE_ANSWERS = {
-    1: "NILM 正常",
-    2: "NILM 感染症・炎症",
-    3: "LSIL",
-    4: "HSIL",
-    5: "SCC",
+    1: "ノーマルム",
+    2: "インフェクタ",
+    3: "コイロサイト諸島",
+    4: "シンジオン砦",
+    5: "スコーマ",
 }
 
 ANSWER_CHOICES = list(CASE_ANSWERS.values())

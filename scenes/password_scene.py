@@ -11,12 +11,16 @@ from objects.textbox import TextBox
 
 class PasswordScene:
 
-    def __init__(self, font, width, height):
+    def __init__(self, font, width, height, password):
         self.font = font
         self.width = width
+        self.password = password
 
-        self.textbox = TextBox(width // 2 - 200, height // 2 - 60, 400, 60, font)
-        self.keyboard = Keyboard(width // 2, height // 2 + 50, font)
+        self.message = ""
+        self.warn_flg = False
+
+        self.textbox = TextBox(width // 2 - 200, height // 2 - 200, 400, 60, font)
+        self.keyboard = Keyboard(width // 2, height // 2 - 50, font)
         self.home_button = Button(10, 10, 270, 70, "ホームに戻る", font)
 
     def handle_event(self, event):
@@ -27,7 +31,12 @@ class PasswordScene:
             self.textbox.text = self.textbox.text[:-1]
 
         elif key == "OK":
-            return self.textbox.text
+            if self.textbox.text == self.password:
+                self.warn_flg = False
+                return self.password
+            else:
+                self.message = "不正なパスコードです"
+                self.warn_flg = True
 
         elif key is not None:
             self.textbox.text += key
@@ -46,6 +55,15 @@ class PasswordScene:
             (0, 0, 0)
         )
         screen.blit(text, text.get_rect(center=(self.width // 2, 250)))
+
+        if self.warn_flg == True:
+
+            warn_text = self.font.render(
+                self.message,
+                True,
+                (255, 0, 0)
+            )
+            screen.blit(warn_text, warn_text.get_rect(center=(self.width // 2, 300)))
 
         self.textbox.draw(screen)
         self.keyboard.draw(screen)

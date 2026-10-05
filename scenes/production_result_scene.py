@@ -14,6 +14,7 @@ class ProductionResultScene:
         self.results = results
 
         self.correct_count = sum(1 for r in results if r["is_correct"])
+        self.total_score = sum(r["score"] for r in results)
 
         self.menu_button = Button(width // 2 - 150, height - 180, 300, 80, "選択画面に戻る", font)
 
@@ -37,23 +38,29 @@ class ProductionResultScene:
         title = self.font.render("本番結果", True, (0, 0, 0))
         screen.blit(title, title.get_rect(center=(width // 2, 100)))
 
+        total = self.font.render(f"合計スコア: {self.total_score}点", True, (200, 120, 0))
+        screen.blit(total, total.get_rect(center=(width // 2, 170)))
+
         score = self.font.render(
             f"{len(self.results)}問中 {self.correct_count}問正解",
             True,
             (0, 0, 0)
         )
-        screen.blit(score, score.get_rect(center=(width // 2, 180)))
+        screen.blit(score, score.get_rect(center=(width // 2, 230)))
 
         # 1問ごとの結果
-        y = 280
+        y = 320
 
         for r in self.results:
             mark = "○" if r["is_correct"] else "×"
             color = (0, 150, 0) if r["is_correct"] else (200, 0, 0)
 
+            player_answer = "時間切れ" if r["time_up"] else r["player_answer"]
+
             text = self.font.render(
                 f"第{r['question_number']}問  {mark}  "
-                f"正解: {r['correct_answer']}  /  あなたの回答: {r['player_answer']}",
+                f"正解: {r['correct_answer']}  /  あなたの回答: {player_answer}"
+                f"  /  {r['score']}点",
                 True,
                 color
             )

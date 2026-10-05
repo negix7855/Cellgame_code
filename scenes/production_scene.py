@@ -1,3 +1,4 @@
+import math
 import time
 
 import pygame
@@ -18,6 +19,14 @@ CASE_ANSWERS = {
 }
 
 ANSWER_CHOICES = list(CASE_ANSWERS.values())
+
+# スコアアタック
+# 回答した時の残り秒数が基礎スコア。正解なら CORRECT_MULTIPLIER 倍、不正解・時間切れは0点
+TIME_LIMIT = 60
+CORRECT_MULTIPLIER = 2
+
+# 残り時間がこの秒数以下になったら赤で表示する
+TIME_WARNING = 10
 
 
 # =========================
@@ -40,7 +49,8 @@ class ProductionScene(WorldScene):
             distribution,
             case_number,
             question_number,
-            total_questions
+            total_questions,
+            score_before=0
         ):
         super().__init__(font, width, cells, grid, world_width, world_height)
 
@@ -58,6 +68,12 @@ class ProductionScene(WorldScene):
         self.answered = False
         self.player_answer = None
         self.is_correct = False
+        self.time_up = False
+
+        # スコア（score_before はこれまでの問題の合計）
+        self.score_before = score_before
+        self.remaining_seconds = TIME_LIMIT
+        self.score = 0
 
         self.answer_buttons = [
             Button(width - 340, 100 + i * 70, 320, 60, answer, font)
@@ -83,7 +99,29 @@ class ProductionScene(WorldScene):
             "correct_answer": self.correct_answer,
             "player_answer": self.player_answer,
             "is_correct": self.is_correct,
+            "time_up": self.time_up,
+            "remaining_seconds": self.remaining_seconds,
+            "score": self.score,
         }
+
+    # =========================
+    # 制限時間
+    # =========================
+
+    def get_remaining_seconds(self):
+        """画面に表示する残り秒数（切り上げ。回答後は回答した時点の値）"""
+        if self.answered:
+            return self.remaining_seconds
+
+        elapsed = time.time() - self.start_time
+
+        return max(0, math.ceil(TIME_LIMIT - elapsed))
+
+    def update(self):
+        super().update()
+
+        if not self.answered and self.get_remaining_seconds() <= 0:
+            self.finish_question(None)
 
     # =========================
     # イベント処理
@@ -98,19 +136,31 @@ class ProductionScene(WorldScene):
 
         for button in self.answer_buttons:
             if button.clicked(pos):
-                self.answer(button.text)
+                self.finish_question(button.text)
                 break
 
         return None
 
-    def answer(self, text):
-        self.answered = True
-        self.player_answer = text
-        self.is_correct = text == self.correct_answer
+    def finish_question(self, answer):
+        """回答（answer が None なら時間切れ）して、この問題のスコアを決める"""
+        elapsed = min(time.time() - self.start_time, TIME_LIMIT)
+
+        # 画面に表示されている残り秒数をそのまま基礎スコアにする
+        self.remaining_seconds = self.get_remaining_seconds()
+
+        self.player_answer = answer
+        self.time_up = answer is None
+        self.is_correct = answer == self.correct_answer
+
+        if self.is_correct:
+            self.score = self.remaining_seconds * CORRECT_MULTIPLIER
+        else:
+            self.score = 0
 
         # 回答後は経過時間を止める
-        self.clear_time = time.time() - self.start_time
+        self.clear_time = elapsed
         self.game_cleared = True
+        self.answered = True
 
     def on_cell_clicked(self, cell):
         # 本番では細胞のクリックに反応しない
@@ -129,13 +179,6 @@ class ProductionScene(WorldScene):
 
         self.draw_status(screen)
 
-        question_text = self.font.render(
-            f"第{self.question_number}問 / {self.total_questions}",
-            True,
-            (0, 0, 0)
-        )
-        screen.blit(question_text, (20, 20))
-
         if self.answered:
             self.draw_answer_result(screen, width)
         else:
@@ -150,11 +193,38 @@ class ProductionScene(WorldScene):
 
         self.draw_minimap(screen, width, height)
 
+    def draw_status(self, screen):
+        """画面左上の 問題番号 / 残り時間 / 合計スコア"""
+        question_text = self.font.render(
+            f"第{self.question_number}問 / {self.total_questions}",
+            True,
+            (0, 0, 0)
+        )
+        screen.blit(question_text, (20, 20))
+
+        remaining = self.get_remaining_seconds()
+
+        color = (200, 0, 0) if remaining <= TIME_WARNING else (0, 0, 0)
+        timer_text = self.font.render(f"残り時間: {remaining}秒", True, color)
+        screen.blit(timer_text, (20, 60))
+
+        total = self.score_before + (self.score if self.answered else 0)
+        score_text = self.font.render(f"合計スコア: {total}点", True, (0, 0, 0))
+        screen.blit(score_text, (20, 100))
+
     def draw_answer_result(self, screen, width):
-        if self.is_correct:
-            result = self.font.render("正解！", True, (0, 150, 0))
+        if self.time_up:
+            result = self.font.render(f"時間切れ！  正解は「{self.correct_answer}」  0点", True, (200, 0, 0))
+
+        elif self.is_correct:
+            result = self.font.render(
+                f"正解！  残り{self.remaining_seconds}秒 × {CORRECT_MULTIPLIER} = {self.score}点",
+                True,
+                (0, 150, 0)
+            )
+
         else:
-            result = self.font.render(f"不正解...  正解は「{self.correct_answer}」", True, (200, 0, 0))
+            result = self.font.render(f"不正解...  正解は「{self.correct_answer}」  0点", True, (200, 0, 0))
 
         screen.blit(result, result.get_rect(center=(width // 2, 50)))
 

@@ -282,7 +282,7 @@ def create_production_generator(case_number):
     )
 
 
-def create_production_scene(generated, case_number, question_number, width):
+def create_production_scene(generated, case_number, question_number, score_before, width):
     cells, grid, _, world_width, world_height, distribution = generated
 
     return ProductionScene(
@@ -295,7 +295,8 @@ def create_production_scene(generated, case_number, question_number, width):
         distribution,
         case_number,
         question_number,
-        PRODUCTION_QUESTION_COUNT
+        PRODUCTION_QUESTION_COUNT,
+        score_before
     )
 
 # =========================
@@ -647,6 +648,7 @@ async def main():
                         finished.value,
                         production_cases[question_number - 1],
                         question_number,
+                        sum(r["score"] for r in production_results),
                         width
                     )
                     current_scene = SCENE_PRODUCTION

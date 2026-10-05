@@ -9,6 +9,7 @@ from objects.slide_viewer import SlideViewer
 from scenes.book_scene import BookScene
 from scenes.difficulty_menu_scene import DiffMenuScene
 from scenes.extra_explore_scene import ExtraExploreScene
+from scenes.extra_menu_scene import ExtraMenuScene
 from scenes.extra_practice_scene import ExtraPracticeScene
 from scenes.game_scene import GameScene
 from scenes.home_scene import HomeScene
@@ -36,8 +37,17 @@ BGM_VOLUME = 0.3
 # パスワード画面でこの文字列を入力するとエクストラモードが始まる
 EXTRA_PASSWORD = "NOTDONE"
 
-# エクストラの練習問題の最後の世界（これをクリアすると本番へ進む）
-LAST_PRACTICE_WORLD = 5
+# エクストラの練習問題の世界の名前（data/practice/world{n}.csv と対応）
+EXTRA_WORLD_NAMES = {
+    1: "ノーマルム",
+    2: "インフェクタ",
+    3: "コイロサイト諸島",
+    4: "シンジオン砦",
+    5: "スコーマ",
+}
+
+# エクストラの練習問題の最後の世界
+LAST_PRACTICE_WORLD = len(EXTRA_WORLD_NAMES)
 
 # 本番の出題数（症例は毎回ランダムに選ぶので重複することがある）
 PRODUCTION_QUESTION_COUNT = 5
@@ -68,6 +78,7 @@ SCENE_PRODUCTION_INTRO = 9
 SCENE_PRODUCTION_RESULT = 10
 SCENE_NORMAL_HELP = 11
 SCENE_EXTRA_BOOK = 12
+SCENE_EXTRA_MENU = 13
 
 # current_scene = SCENE_HOME
 current_scene = SCENE_HOME
@@ -224,6 +235,13 @@ for world in range(1, LAST_PRACTICE_WORLD + 1):
 
 loading_scene = LoadingScene(font)
 password_scene = PasswordScene(font, WIDTH, HEIGHT)
+extra_menu_scene = ExtraMenuScene(
+    font,
+    WIDTH,
+    HEIGHT,
+    [EXTRA_WORLD_NAMES[i] for i in range(1, LAST_PRACTICE_WORLD + 1)],
+    sorted(extra_book_scenes)
+)
 production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)
 
 
@@ -307,6 +325,10 @@ async def main():
     # 図鑑から戻る先のシーン
     book_return_scene = SCENE_DIFFMENU
 
+    # エクストラの図鑑で表示する世界と、閉じた時に戻るシーン
+    extra_book_world = 1
+    extra_book_return_scene = SCENE_EXTRA_EXPLORE
+
     # ノーマルモードの遊び方を一度見たかどうか（起動中のみ記憶する）
     normal_help_seen = False
 
@@ -359,7 +381,6 @@ async def main():
                         current_scene = SCENE_NORMAL_HELP
 
                 elif result == "extra":
-                    loading_target = SCENE_EXTRA_EXPLORE
                     current_scene = SCENE_PASSWORD
 
             elif current_scene == SCENE_DIFFMENU:
@@ -420,15 +441,29 @@ async def main():
                         play_bgm(GAME_BGM)
 
             elif current_scene == SCENE_EXTRA_BOOK:
-                result = extra_book_scenes[world_data].handle_event(event)
+                result = extra_book_scenes[extra_book_world].handle_event(event)
 
                 if result == "menu":
-                    current_scene = SCENE_EXTRA_EXPLORE
+                    current_scene = extra_book_return_scene
 
             elif current_scene == SCENE_PASSWORD:
                 result = password_scene.handle_event(event)
 
                 if result == EXTRA_PASSWORD:
+                    extra_menu_scene.notice = ""
+                    current_scene = SCENE_EXTRA_MENU
+
+                elif result == "home":
+                    current_scene = SCENE_HOME
+                    play_bgm(HOME_BGM)
+
+            elif current_scene == SCENE_EXTRA_MENU:
+                result = extra_menu_scene.handle_event(event)
+                action = result["action"] if result else None
+
+                if action == "practice":
+                    world_data = result["world"]
+
                     stop_bgm()
 
                     generator = generate_extra_map(
@@ -436,22 +471,37 @@ async def main():
                         cell_images=extra_cell_images
                     )
 
+                    loading_target = SCENE_EXTRA_EXPLORE
                     current_scene = SCENE_LOADING
 
-                elif result == "home":
+                elif action == "production":
+                    current_scene = SCENE_PRODUCTION_INTRO
+
+                elif action == "book":
+                    extra_book_world = result["world"]
+                    extra_book_return_scene = SCENE_EXTRA_MENU
+                    current_scene = SCENE_EXTRA_BOOK
+
+                elif action == "home":
                     current_scene = SCENE_HOME
                     play_bgm(HOME_BGM)
 
             elif current_scene == SCENE_EXTRA_EXPLORE:
                 result = extra_explore_scene.handle_event(event, width, height)
 
-                if result == "home":
-                    current_scene = SCENE_HOME
+                if result == "menu":
+                    extra_explore_scene = None
+                    gc.collect()
+
+                    extra_menu_scene.notice = ""
+                    current_scene = SCENE_EXTRA_MENU
                     play_bgm(HOME_BGM)
 
                 elif result == "book":
                     # 図鑑がまだ用意されていない世界では何もしない
                     if world_data in extra_book_scenes:
+                        extra_book_world = world_data
+                        extra_book_return_scene = SCENE_EXTRA_EXPLORE
                         current_scene = SCENE_EXTRA_BOOK
 
                 elif result == "practice":
@@ -469,11 +519,13 @@ async def main():
                 result = extra_practice_scene.handle_event(event)
 
                 if result == "next_world" and world_data >= LAST_PRACTICE_WORLD:
-                    # 全世界の練習問題をクリアしたら本番の案内へ
+                    # 最後の世界の練習問題をクリアしたら選択画面へ
                     extra_practice_scene = None
                     gc.collect()
 
-                    current_scene = SCENE_PRODUCTION_INTRO
+                    extra_menu_scene.notice = "すべての練習問題をクリアしました！"
+                    current_scene = SCENE_EXTRA_MENU
+                    play_bgm(HOME_BGM)
 
                 elif result in ("next_world", "retry"):
                     if result == "next_world":
@@ -505,6 +557,9 @@ async def main():
                     loading_target = SCENE_PRODUCTION
                     current_scene = SCENE_LOADING
 
+                elif result == "back":
+                    current_scene = SCENE_EXTRA_MENU
+
             elif current_scene == SCENE_PRODUCTION:
                 result = production_scene.handle_event(event, width, height)
 
@@ -532,13 +587,11 @@ async def main():
             elif current_scene == SCENE_PRODUCTION_RESULT:
                 result = production_result_scene.handle_event(event)
 
-                if result == "home":
+                if result == "menu":
                     production_result_scene = None
 
-                    # 次にエクストラを遊ぶ時は最初の世界から
-                    world_data = 1
-
-                    current_scene = SCENE_HOME
+                    extra_menu_scene.notice = ""
+                    current_scene = SCENE_EXTRA_MENU
                     play_bgm(HOME_BGM)
 
             elif current_scene == SCENE_NORMAL_HELP:
@@ -568,7 +621,7 @@ async def main():
             book_scene.draw(screen)
 
         elif current_scene == SCENE_EXTRA_BOOK:
-            extra_book_scenes[world_data].draw(screen)
+            extra_book_scenes[extra_book_world].draw(screen)
 
         elif current_scene == SCENE_LOADING:
             loading_scene.draw(screen)
@@ -610,6 +663,9 @@ async def main():
         elif current_scene == SCENE_EXTRA_PRACTICE:
             extra_practice_scene.update()
             extra_practice_scene.draw(screen)
+
+        elif current_scene == SCENE_EXTRA_MENU:
+            extra_menu_scene.draw(screen)
 
         elif current_scene == SCENE_PRODUCTION_INTRO:
             production_intro_scene.draw(screen)

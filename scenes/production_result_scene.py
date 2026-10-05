@@ -15,15 +15,15 @@ class ProductionResultScene:
 
         self.correct_count = sum(1 for r in results if r["is_correct"])
 
-        self.home_button = Button(width // 2 - 150, height - 180, 300, 80, "ホームへ戻る", font)
+        self.menu_button = Button(width // 2 - 150, height - 180, 300, 80, "選択画面に戻る", font)
 
     def update_layout(self, width, height):
-        self.home_button.rect = pygame.Rect(width // 2 - 150, height - 180, 300, 80)
+        self.menu_button.rect = pygame.Rect(width // 2 - 150, height - 180, 300, 80)
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.home_button.clicked(event.pos):
-                return "home"
+            if self.menu_button.clicked(event.pos):
+                return "menu"
 
         return None
 
@@ -60,4 +60,4 @@ class ProductionResultScene:
             screen.blit(text, text.get_rect(center=(width // 2, y)))
             y += 70
 
-        self.home_button.draw(screen)
+        self.menu_button.draw(screen)

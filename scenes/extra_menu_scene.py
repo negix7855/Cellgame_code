@@ -36,7 +36,7 @@ class ExtraMenuScene:
         # 画面上部に出す一言（world5 クリア時など）
         self.notice = ""
 
-        self.home_button = Button(10, 10, 270, 70, "ホームに戻る", font)
+        self.home_button = Button(30, 30, 270, 70, "ホームに戻る", font)
 
         self.world_buttons = [
             Button(0, 0, WORLD_BUTTON_WIDTH, WORLD_BUTTON_HEIGHT, name, font)
@@ -74,8 +74,8 @@ class ExtraMenuScene:
         self.ranking_button.rect = pygame.Rect(width // 2 - 180, PRODUCTION_BUTTON_Y + 130, 360, 80)
 
         # 図鑑ボタンは右上、世界ごとのボタンはその下に縦に並べる
-        x = width - BOOK_BUTTON_WIDTH - 10
-        y = 20
+        x = width - BOOK_BUTTON_WIDTH - 30
+        y = 30
 
         self.book_button.rect = pygame.Rect(x, y, BOOK_BUTTON_WIDTH, BOOK_BUTTON_HEIGHT)
 

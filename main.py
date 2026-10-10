@@ -24,6 +24,7 @@ from setting import STAGES
 from systems.game_generator import generate_game
 from systems.generate_extra_map import generate_extra_map
 from systems.ranking_api import make_details
+from systems.score import count_streak
 from systems.resource import resource_path
 
 # =========================
@@ -63,6 +64,10 @@ EXTRA_CELL_KINDS = {
     "HSIL": 8,
     "SCC": 9,
 }
+
+# 本番問題に登場するコインの金額（images/coins/coin_{金額}.png）
+# 数と大きさは分布表（data/exam/case*.csv）の coin_{金額} の行で決める
+COIN_VALUES = [10, 50, 100, 500]
 
 # =========================
 # シーン管理
@@ -153,6 +158,20 @@ exam_cell_images = {
     for kind, count in EXTRA_CELL_KINDS.items()
     for i in range(1, count + 1)
 }
+
+
+def load_coin_image(value):
+    image = load_image(f"images/coins/coin_{value}.png")
+
+    # 画像の周りの透明な余白を切り落とす（余白ごと正方形に縮めると楕円になるため）
+    return image.subsurface(image.get_bounding_rect()).copy()
+
+
+# コインも細胞と同じ仕組みで配置するので、本番用の画像に加える
+exam_cell_images.update({
+    f"coin_{value}": load_coin_image(value)
+    for value in COIN_VALUES
+})
 
 home_background = load_image("images/background/home.png")
 diffmenu_background = load_image("images/background/diffmenu.jpg", alpha=False)
@@ -287,7 +306,7 @@ def create_production_generator(case_number):
     )
 
 
-def create_production_scene(generated, case_number, question_number, score_before, width):
+def create_production_scene(generated, case_number, question_number, score_before, streak_before, width):
     cells, grid, _, world_width, world_height, distribution = generated
 
     return ProductionScene(
@@ -301,7 +320,8 @@ def create_production_scene(generated, case_number, question_number, score_befor
         case_number,
         question_number,
         PRODUCTION_QUESTION_COUNT,
-        score_before
+        score_before,
+        streak_before
     )
 
 # =========================
@@ -716,6 +736,7 @@ async def main():
                         production_cases[question_number - 1],
                         question_number,
                         sum(r["score"] for r in production_results),
+                        count_streak(production_results),
                         width
                     )
                     current_scene = SCENE_PRODUCTION

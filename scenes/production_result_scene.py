@@ -1,6 +1,7 @@
 import pygame
 
 from objects.button import Button
+from systems.score import TIME_BONUS_PER_SECOND, total_score
 
 
 # =========================
@@ -14,7 +15,10 @@ class ProductionResultScene:
         self.results = results
 
         self.correct_count = sum(1 for r in results if r["is_correct"])
-        self.total_score = sum(r["score"] for r in results)
+
+        # 最終スコアと内訳（問題スコア / 全問正解ボーナス / 残り時間ボーナス）
+        self.breakdown = total_score(results)
+        self.total_score = self.breakdown["total"]
 
         # ランキングに送信したか（送信後は二重に送れないようにする）
         self.submitted = False
@@ -48,21 +52,25 @@ class ProductionResultScene:
 
         screen.fill((255, 255, 255))
 
-        title = self.font.render("本番結果", True, (0, 0, 0))
-        screen.blit(title, title.get_rect(center=(width // 2, 100)))
+        b = self.breakdown
 
-        total = self.font.render(f"合計スコア: {self.total_score}点", True, (200, 120, 0))
-        screen.blit(total, total.get_rect(center=(width // 2, 170)))
+        self.draw_center(screen, "本番結果", 70)
+        self.draw_center(screen, f"合計スコア: {self.total_score}点", 140, (200, 120, 0))
+        self.draw_center(screen, f"{len(self.results)}問中 {self.correct_count}問正解", 200)
 
-        score = self.font.render(
-            f"{len(self.results)}問中 {self.correct_count}問正解",
-            True,
-            (0, 0, 0)
+        # 内訳
+        self.draw_center(
+            screen,
+            f"問題スコア {b['question_total']}点"
+            f"  ＋  全問正解ボーナス {b['all_correct_bonus']}点"
+            f"  ＋  残り時間ボーナス {b['time_bonus']}点"
+            f"（{b['remaining_total']}秒 × {TIME_BONUS_PER_SECOND}）",
+            270,
+            (80, 80, 80)
         )
-        screen.blit(score, score.get_rect(center=(width // 2, 230)))
 
         # 1問ごとの結果
-        y = 320
+        y = 360
 
         for r in self.results:
             mark = "○" if r["is_correct"] else "×"
@@ -70,16 +78,20 @@ class ProductionResultScene:
 
             player_answer = "時間切れ" if r["time_up"] else r["player_answer"]
 
-            text = self.font.render(
+            self.draw_center(
+                screen,
                 f"第{r['question_number']}問  {mark}  "
                 f"正解: {r['correct_answer']}  /  あなたの回答: {player_answer}"
-                f"  /  {r['score']}点",
-                True,
+                f"  /  コイン {r['coin_score']}点 → {r['score']}点",
+                y,
                 color
             )
-            screen.blit(text, text.get_rect(center=(width // 2, y)))
             y += 70
 
         # 送信済みのボタンは押せないので暗く表示する
         self.submit_button.draw(screen, (120, 120, 120) if self.submitted else (180, 180, 180))
         self.menu_button.draw(screen)
+
+    def draw_center(self, screen, text, y, color=(0, 0, 0)):
+        surface = self.font.render(text, True, color)
+        screen.blit(surface, surface.get_rect(center=(screen.get_width() // 2, y)))

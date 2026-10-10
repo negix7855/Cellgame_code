@@ -21,7 +21,7 @@ class PasswordScene:
 
         self.textbox = TextBox(width // 2 - 200, height // 2 - 200, 400, 60, font)
         self.keyboard = Keyboard(width // 2, height // 2 - 50, font)
-        self.home_button = Button(10, 10, 270, 70, "ホームに戻る", font)
+        self.home_button = Button(30, 30, 270, 70, "ホームに戻る", font)
 
     def handle_event(self, event):
         """OK で入力文字列を、ホームボタンで "home" を返す"""

@@ -1,11 +1,21 @@
 -- =========================================================
 -- 本番問題（スコアアタック）のランキング
 -- Supabase の SQL Editor に貼り付けて、まとめて実行する
+-- （何度実行しても大丈夫。ルールを変えた時はこのファイルを丸ごと再実行する）
 --
--- ゲーム側（scenes/production_scene.py）の設定と合わせること
---   問題数            5
---   制限時間          60秒   (TIME_LIMIT)
---   正解時の倍率      2倍    (CORRECT_MULTIPLIER)
+-- スコアの計算はゲーム側の systems/score.py と同じにすること
+--   1問のスコア
+--     基礎スコア = その問題で拾ったコインの合計
+--     正解       = 基礎スコア × 2 × 連続正解の倍率（2問目 1.1 / 3問目 1.2 / 4問目 1.3 / 5問目 1.5）
+--     不正解     = 基礎スコア × 0.5
+--     時間切れ   = 0点
+--   最終スコア = 問題スコアの合計 + 全問正解ボーナス 5000点 + 残り時間の合計 × 150点
+--
+-- ゲーム側の設定と合わせること
+--   問題数                5
+--   制限時間              60秒   (scenes/production_scene.py の TIME_LIMIT)
+--   1問のコインの最大合計 5700点 (data/exam/case*.csv の coin_* の枚数 × 金額)
+--   理論上の最高点        119540点
 -- =========================================================
 
 
@@ -25,15 +35,20 @@ create table if not exists public.scores (
     prefecture    smallint not null check (prefecture between 1 and 47),
 
     -- 合計スコアと正解数は、サーバー側で details から計算する
-    score         integer  not null check (score between 0 and 600),
+    score         integer  not null,
     correct_count smallint not null check (correct_count between 0 and 5),
 
-    -- 1問ごとの結果 [{"is_correct": bool, "remaining_seconds": int, "time_up": bool}, ...]
+    -- 1問ごとの結果
+    -- [{"is_correct": bool, "time_up": bool, "remaining_seconds": int, "coin_score": int}, ...]
     details       jsonb    not null,
 
     -- 登録日時はサーバーの時刻で記録する
     created_at    timestamptz not null default now()
 );
+
+-- スコアの範囲（ルールを変えた時に作り直せるよう、名前を付けて別に定義する）
+alter table public.scores drop constraint if exists scores_score_check;
+alter table public.scores add constraint scores_score_check check (score between 0 and 119540);
 
 -- ランキングの並び順（スコアが高い順 → 同点なら新しい順）
 create index if not exists scores_ranking_idx
@@ -61,17 +76,24 @@ security definer
 set search_path = public
 as $$
 declare
-    question_count constant integer := 5;
-    time_limit     constant integer := 60;
-    multiplier     constant integer := 2;
+    question_count        constant integer := 5;
+    time_limit            constant integer := 60;
+    max_coin_score        constant integer := 5700;
+    all_correct_bonus     constant integer := 5000;
+    time_bonus_per_second constant integer := 150;
 
     item       jsonb;
     is_correct boolean;
     time_up    boolean;
     remaining  integer;
+    coins      integer;
+    multiplier integer;
 
-    total_score   integer := 0;
-    total_correct integer := 0;
+    streak          integer := 0;
+    question_total  integer := 0;
+    remaining_total integer := 0;
+    total_correct   integer := 0;
+    total_score     integer;
 
     new_id   bigint;
     new_rank bigint;
@@ -95,32 +117,64 @@ begin
         raise exception 'invalid details';
     end if;
 
-    for item in select value from jsonb_array_elements(p_details) loop
+    -- 出題順に計算する（連続正解の倍率が順番で変わるため）
+    for item in select value from jsonb_array_elements(p_details) with ordinality as t(value, n) order by n loop
         -- 項目が無い場合（NULL）もはじくため is distinct from で比べる
         if jsonb_typeof(item -> 'is_correct') is distinct from 'boolean'
            or jsonb_typeof(item -> 'time_up') is distinct from 'boolean'
-           or jsonb_typeof(item -> 'remaining_seconds') is distinct from 'number' then
+           or jsonb_typeof(item -> 'remaining_seconds') is distinct from 'number'
+           or jsonb_typeof(item -> 'coin_score') is distinct from 'number' then
             raise exception 'invalid details';
         end if;
 
         is_correct := (item ->> 'is_correct')::boolean;
         time_up    := (item ->> 'time_up')::boolean;
         remaining  := (item ->> 'remaining_seconds')::numeric::integer;
+        coins      := (item ->> 'coin_score')::numeric::integer;
 
         if remaining not between 0 and time_limit then
             raise exception 'invalid remaining_seconds';
         end if;
 
-        -- 時間切れなら正解ではあり得ない
-        if time_up and is_correct then
+        -- コインは10点単位で、マップにある分まで
+        if coins not between 0 and max_coin_score or coins % 10 <> 0 then
+            raise exception 'invalid coin_score';
+        end if;
+
+        -- 時間切れなら正解ではあり得ず、残り時間も0秒
+        if time_up and (is_correct or remaining <> 0) then
             raise exception 'invalid details';
         end if;
 
-        if is_correct then
-            total_score   := total_score + remaining * multiplier;
+        if time_up then
+            streak := 0;
+
+        elsif is_correct then
+            streak := streak + 1;
             total_correct := total_correct + 1;
+
+            -- 連続正解の倍率（10倍した整数。11 = 1.1倍）
+            multiplier := case streak
+                when 1 then 10
+                when 2 then 11
+                when 3 then 12
+                when 4 then 13
+                else 15
+            end;
+
+            question_total := question_total + coins * 2 * multiplier / 10;
+
+        else
+            streak := 0;
+            question_total := question_total + coins / 2;
         end if;
+
+        remaining_total := remaining_total + remaining;
     end loop;
+
+    total_score := question_total
+                 + case when total_correct = question_count then all_correct_bonus else 0 end
+                 + remaining_total * time_bonus_per_second;
 
     insert into public.scores (nickname, prefecture, score, correct_count, details)
     values (p_nickname, p_prefecture, total_score, total_correct, p_details)

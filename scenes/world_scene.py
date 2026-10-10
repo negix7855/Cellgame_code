@@ -6,9 +6,6 @@ import pygame
 from objects.button import Button
 from systems.grid import GRID_SIZE, iter_neighbor_cells
 
-# クリックの連打を無視する間隔（ミリ秒）
-CLICK_INTERVAL_MS = 500
-
 # この距離以上指が動いたらタップではなくドラッグとみなす
 TAP_MOVE_THRESHOLD = 15
 
@@ -22,6 +19,9 @@ class WorldScene:
 
     MIN_ZOOM = 0.1
     MAX_ZOOM = 4.0
+
+    # クリックの連打を無視する間隔（ミリ秒）
+    CLICK_INTERVAL_MS = 500
 
     # ヘルプメニューの「戻る」ボタンの表示名と、押した時に main に返す結果
     RETRY_LABEL = ""
@@ -348,7 +348,7 @@ class WorldScene:
     def check_cell_click(self, world_pos):
         now = pygame.time.get_ticks()
 
-        if now - self.last_click_time < CLICK_INTERVAL_MS:
+        if now - self.last_click_time < self.CLICK_INTERVAL_MS:
             return
 
         self.last_click_time = now

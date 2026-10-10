@@ -65,6 +65,7 @@ def make_details(results):
             "is_correct": bool(r["is_correct"]),
             "remaining_seconds": int(r["remaining_seconds"]),
             "time_up": bool(r["time_up"]),
+            "coin_score": int(r["coin_score"]),
         }
         for r in results
     ]

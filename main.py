@@ -176,6 +176,12 @@ exam_cell_images.update({
 home_background = load_image("images/background/home.png")
 diffmenu_background = load_image("images/background/diffmenu.jpg", alpha=False)
 
+# エクストラの選択画面（ボタンは背景画像に描かれている）
+extra_menu_backgrounds = {
+    "closed": load_image("images/background/extra_menu.jpg", alpha=False),
+    "open": load_image("images/background/extra_menu_book.jpg", alpha=False),
+}
+
 # ノーマルモードの遊び方のスライド
 # buttons はスライド画像（1920x1080）に描かれているボタンの位置
 normal_help_slides = SlideViewer([
@@ -201,6 +207,12 @@ HOME_BGM = resource_path("sounds/BGM/home_bgm.ogg")
 DIFFMENU_BGM = resource_path("sounds/BGM/diffmenu_bgm.ogg")
 GAME_BGM = resource_path("sounds/BGM/normalgame_bgm.ogg")
 
+# 曲ごとの音量の倍率（BGM_VOLUME に掛ける）。元の音源の音の大きさの違いをそろえる
+# normalgame_bgm は他の曲より約3.5dB小さいので 1.5倍にする
+BGM_VOLUME_SCALES = {
+    GAME_BGM: 1.5,
+}
+
 current_bgm = None
 
 
@@ -214,7 +226,7 @@ def play_bgm(path):
     current_bgm = path
 
     pygame.mixer.music.load(path)
-    pygame.mixer.music.set_volume(BGM_VOLUME)
+    pygame.mixer.music.set_volume(min(1.0, BGM_VOLUME * BGM_VOLUME_SCALES.get(path, 1.0)))
     pygame.mixer.music.play(-1)
 
 
@@ -263,7 +275,7 @@ extra_menu_scene = ExtraMenuScene(
     font,
     WIDTH,
     HEIGHT,
-    [EXTRA_WORLD_NAMES[i] for i in range(1, LAST_PRACTICE_WORLD + 1)],
+    extra_menu_backgrounds,
     sorted(extra_book_scenes)
 )
 production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)

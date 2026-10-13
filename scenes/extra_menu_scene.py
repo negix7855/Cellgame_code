@@ -3,151 +3,191 @@ import pygame
 from objects.button import Button
 from systems.resource import resource_path
 
-WORLD_BUTTON_WIDTH = 300
-WORLD_BUTTON_HEIGHT = 90
-WORLD_BUTTON_GAP = 30
+# 背景画像の基準サイズ（当たり判定はこのサイズの座標で指定する）
+BASE_WIDTH = 1920
+BASE_HEIGHT = 1080
 
-# 各段の縦位置（右上の図鑑メニューを開いても重ならない高さにする）
-PRACTICE_LABEL_Y = 480
-WORLD_BUTTON_Y = 530
-PRODUCTION_LABEL_Y = 730
-PRODUCTION_BUTTON_Y = 780
+# 背景画像に描かれているボタンの位置 (x, y, w, h)
+# 図鑑メニューを開いた画像（extra_menu_book）はボタンの位置が少し違うので別に持つ
+LAYOUTS = {
+    "closed": {
+        "home": (30, 32, 295, 80),
+        "book": (1595, 35, 290, 72),
+        "worlds": [
+            (188, 522, 299, 93),
+            (505, 522, 303, 93),
+            (826, 522, 299, 93),
+            (1143, 522, 289, 93),
+            (1452, 522, 294, 93),
+        ],
+        "production": (765, 775, 400, 107),
+        "book_worlds": [],
+    },
+    "open": {
+        "home": (30, 35, 295, 80),
+        "book": (1595, 38, 290, 70),
+        "worlds": [
+            (183, 532, 301, 93),
+            (502, 532, 303, 93),
+            (822, 532, 300, 93),
+            (1140, 532, 290, 93),
+            (1450, 532, 295, 93),
+        ],
+        "production": (757, 785, 408, 110),
+        # 図鑑メニューの各世界（ノーマルム → スコーマ）
+        "book_worlds": [
+            (1595, 118, 290, 62),
+            (1595, 190, 290, 62),
+            (1595, 263, 290, 62),
+            (1595, 335, 290, 63),
+            (1595, 408, 290, 62),
+        ],
+    },
+}
 
-# 右上の図鑑メニュー（「コイロサイト諸島」が収まる幅）
-BOOK_BUTTON_WIDTH = 300
-BOOK_BUTTON_HEIGHT = 60
-BOOK_BUTTON_GAP = 10
+# 背景画像に描かれていないので、コードで描くボタン
+RANKING_BUTTON = (1290, 38, 285, 70)
+
+# world5 クリア時などのお知らせを表示する高さ（タイトルと練習問題の見出しの間）
+NOTICE_Y = 400
+
+# 当たり判定を赤枠で表示する（位置合わせの確認用）
+DEBUG_HITBOX = False
 
 
 # =========================
 # エクストラの選択画面
 # （パスワード入力の後に、練習問題の世界か本番問題を選ぶ）
+# ボタンは背景画像に描かれているので、透明な当たり判定だけを持つ
 # =========================
 
 class ExtraMenuScene:
 
-    def __init__(self, font, width, height, world_names, book_worlds):
-        """world_names: 世界の名前のリスト（WORLD 1 から順に）
-        book_worlds: 図鑑がある世界の番号のリスト
+    def __init__(self, font, width, height, backgrounds, book_worlds):
+        """backgrounds: {"closed": 通常の背景, "open": 図鑑メニューを開いた背景}
+        book_worlds: 図鑑がある世界の番号のリスト（図鑑が無い世界のボタンは押せない）
         """
         self.font = font
-        self.world_count = len(world_names)
+        self.backgrounds = backgrounds
+        self.book_worlds = set(book_worlds)
 
         # 画面上部に出す一言（world5 クリア時など）
         self.notice = ""
 
-        self.home_button = Button(30, 30, 270, 70, "ホームに戻る", font)
-
-        self.world_buttons = [
-            Button(0, 0, WORLD_BUTTON_WIDTH, WORLD_BUTTON_HEIGHT, name, font)
-            for name in world_names
-        ]
-
-        self.production_button = Button(0, 0, 360, 100, "本番問題に挑戦", font)
-        self.ranking_button = Button(0, 0, 360, 80, "ランキングを見る", font)
-
-        # 図鑑メニュー（「図鑑」を押すと世界ごとのボタンが開く）
         self.book_menu_open = False
-        self.book_button = Button(0, 0, BOOK_BUTTON_WIDTH, BOOK_BUTTON_HEIGHT, "図鑑", font)
-        self.book_world_buttons = [
-            (world, Button(0, 0, BOOK_BUTTON_WIDTH, BOOK_BUTTON_HEIGHT, world_names[world - 1], font))
-            for world in book_worlds
-        ]
+
+        self.ranking_button = Button(*RANKING_BUTTON, "ランキングを見る", font)
 
         self.select_se = pygame.mixer.Sound(resource_path("sounds/select_diffmenu.ogg"))
+
+        # 画面サイズに合わせた背景（サイズが変わった時だけ作り直す）
+        self.scaled_backgrounds = {}
 
         self.update_layout(width, height)
 
     def update_layout(self, width, height):
-        # 練習問題の世界ボタンを横一列に並べる
-        row_width = (
-            WORLD_BUTTON_WIDTH * self.world_count
-            + WORLD_BUTTON_GAP * (self.world_count - 1)
+        self.scale_x = width / BASE_WIDTH
+        self.scale_y = height / BASE_HEIGHT
+
+        self.ranking_button.rect = self.to_screen(RANKING_BUTTON)
+
+    def to_screen(self, rect):
+        """基準サイズの座標を、現在の画面サイズに合わせて変換する"""
+        x, y, w, h = rect
+
+        return pygame.Rect(
+            x * self.scale_x,
+            y * self.scale_y,
+            w * self.scale_x,
+            h * self.scale_y
         )
-        x = width // 2 - row_width // 2
 
-        for button in self.world_buttons:
-            button.rect = pygame.Rect(x, WORLD_BUTTON_Y, WORLD_BUTTON_WIDTH, WORLD_BUTTON_HEIGHT)
-            x += WORLD_BUTTON_WIDTH + WORLD_BUTTON_GAP
+    def current_layout(self):
+        return LAYOUTS["open" if self.book_menu_open else "closed"]
 
-        self.production_button.rect = pygame.Rect(width // 2 - 180, PRODUCTION_BUTTON_Y, 360, 100)
-        self.ranking_button.rect = pygame.Rect(width // 2 - 180, PRODUCTION_BUTTON_Y + 130, 360, 80)
+    def hit(self, rect, pos):
+        return self.to_screen(rect).collidepoint(pos)
 
-        # 図鑑ボタンは右上、世界ごとのボタンはその下に縦に並べる
-        x = width - BOOK_BUTTON_WIDTH - 30
-        y = 30
-
-        self.book_button.rect = pygame.Rect(x, y, BOOK_BUTTON_WIDTH, BOOK_BUTTON_HEIGHT)
-
-        for _, button in self.book_world_buttons:
-            y += BOOK_BUTTON_HEIGHT + BOOK_BUTTON_GAP
-            button.rect = pygame.Rect(x, y, BOOK_BUTTON_WIDTH, BOOK_BUTTON_HEIGHT)
+    # =========================
+    # イベント処理
+    # =========================
 
     def handle_event(self, event):
         """選ばれた内容を辞書で返す（何も選ばれなければ None）"""
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return None
 
-        if self.book_button.clicked(event.pos):
+        pos = event.pos
+        layout = self.current_layout()
+
+        if self.hit(layout["book"], pos):
             self.select_se.play()
             self.book_menu_open = not self.book_menu_open
             return None
 
-        # 図鑑メニューは他のボタンの上に重ねて表示するので先に判定する
-        if self.book_menu_open:
-            for world, button in self.book_world_buttons:
-                if button.clicked(event.pos):
-                    self.select_se.play()
-                    return {"action": "book", "world": world}
-
-        for i, button in enumerate(self.world_buttons, 1):
-            if button.clicked(event.pos):
+        # 図鑑メニューは他のボタンの上に重なるので先に判定する
+        for world, rect in enumerate(layout["book_worlds"], 1):
+            if world in self.book_worlds and self.hit(rect, pos):
                 self.select_se.play()
-                return {"action": "practice", "world": i}
+                return {"action": "book", "world": world}
 
-        if self.production_button.clicked(event.pos):
+        for world, rect in enumerate(layout["worlds"], 1):
+            if self.hit(rect, pos):
+                self.select_se.play()
+                return {"action": "practice", "world": world}
+
+        if self.hit(layout["production"], pos):
             self.select_se.play()
             return {"action": "production"}
 
-        if self.ranking_button.clicked(event.pos):
+        if self.ranking_button.clicked(pos):
             self.select_se.play()
             return {"action": "ranking"}
 
-        if self.home_button.clicked(event.pos):
+        if self.hit(layout["home"], pos):
             self.select_se.play()
             return {"action": "home"}
 
         return None
+
+    # =========================
+    # 描画
+    # =========================
 
     def draw(self, screen):
         width, height = screen.get_size()
 
         self.update_layout(width, height)
 
-        screen.fill((255, 255, 255))
-
-        title = self.font.render("エクストラステージ", True, (0, 0, 0))
-        screen.blit(title, title.get_rect(center=(width // 2, 150)))
+        screen.blit(self.get_background(width, height), (0, 0))
 
         if self.notice:
-            notice = self.font.render(self.notice, True, (0, 150, 0))
-            screen.blit(notice, notice.get_rect(center=(width // 2, 230)))
+            notice = self.font.render(self.notice, True, (0, 130, 0))
+            screen.blit(notice, notice.get_rect(center=(width // 2, NOTICE_Y * self.scale_y)))
 
-        practice_label = self.font.render("練習問題（世界を選んで探索）", True, (0, 0, 0))
-        screen.blit(practice_label, practice_label.get_rect(center=(width // 2, PRACTICE_LABEL_Y)))
-
-        for button in self.world_buttons:
-            button.draw(screen)
-
-        production_label = self.font.render("本番問題（症例を判定）", True, (0, 0, 0))
-        screen.blit(production_label, production_label.get_rect(center=(width // 2, PRODUCTION_LABEL_Y)))
-
-        self.production_button.draw(screen)
         self.ranking_button.draw(screen)
-        self.home_button.draw(screen)
 
-        self.book_button.draw(screen)
+        if DEBUG_HITBOX:
+            self.draw_hitboxes(screen)
 
-        if self.book_menu_open:
-            for _, button in self.book_world_buttons:
-                button.draw(screen)
+    def get_background(self, width, height):
+        key = ("open" if self.book_menu_open else "closed", width, height)
+
+        if key not in self.scaled_backgrounds:
+            image = self.backgrounds[key[0]]
+
+            if image.get_size() != (width, height):
+                image = pygame.transform.smoothscale(image, (width, height))
+
+            self.scaled_backgrounds[key] = image
+
+        return self.scaled_backgrounds[key]
+
+    def draw_hitboxes(self, screen):
+        layout = self.current_layout()
+
+        rects = [layout["home"], layout["book"], layout["production"]]
+        rects += layout["worlds"] + layout["book_worlds"]
+
+        for rect in rects:
+            pygame.draw.rect(screen, (255, 0, 0), self.to_screen(rect), 3)

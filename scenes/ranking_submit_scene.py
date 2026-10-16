@@ -3,8 +3,9 @@ import asyncio
 import pygame
 
 from objects.button import Button
-from objects.keyboard import Keyboard
+from objects.image_keyboard import RANKING_LAYOUT, ImageKeyboard, scale_rect
 from objects.textbox import TextBox
+from systems.resource import resource_path
 from systems import ranking_api
 from systems.prefectures import REGIONS, prefecture_name
 
@@ -28,6 +29,16 @@ CHOICE_GAP = 30
 
 SELECTED_COLOR = (100, 200, 255)
 
+# ニックネーム入力（背景画像 ranking_keyboard に描かれた入力欄・キーボードを使う）
+NICKNAME_TEXT_COLOR = (60, 35, 20)
+NICKNAME_ERROR_Y = 483
+
+# 背景画像の「0 / 15」を塗りつぶす色を取る場所（文字数の真下の、何も描かれていない羊皮紙）
+COUNTER_PATCH_SAMPLE = (1330, 482, 100, 16)
+
+# 当たり判定を赤枠で表示する（位置合わせの確認用）
+DEBUG_HITBOX = False
+
 
 # =========================
 # ランキングへの送信画面
@@ -36,8 +47,10 @@ SELECTED_COLOR = (100, 200, 255)
 
 class RankingSubmitScene:
 
-    def __init__(self, font, width, height, score, details, nickname="", prefecture=None):
-        """nickname / prefecture: 前回送信した時の入力（起動中だけ引き継ぐ）"""
+    def __init__(self, font, width, height, score, details, nickname="", prefecture=None, keyboard_background=None):
+        """nickname / prefecture: 前回送信した時の入力（起動中だけ引き継ぐ）
+        keyboard_background: ニックネーム入力の背景（入力欄とキーボードが描かれた画像）
+        """
         self.font = font
         self.width = width
         self.height = height
@@ -59,11 +72,26 @@ class RankingSubmitScene:
 
         self.nickname_error = ""
 
-        self.textbox = TextBox(width // 2 - 250, 220, 500, 60, font)
+        # 入力中のニックネーム（入力欄は背景画像に描かれているので、文字の入れ物として使う）
+        self.textbox = TextBox(0, 0, 0, 0, font)
         self.textbox.text = nickname
-        self.keyboard = Keyboard(width // 2, 340, font)
+
+        self.keyboard_background = keyboard_background
+        self.scaled_keyboard_background = None
+        self.counter_patch_color = None
+
+        self.keyboard = ImageKeyboard(RANKING_LAYOUT["keys"], font, width, height)
+
+        # ニックネーム入力の「戻る」は背景画像に描かれているので当たり判定だけ
+        self.nickname_back_button = Button(0, 0, 0, 0, "戻る", font)
+        self.text_area = pygame.Rect(0, 0, 0, 0)
+        self.counter_area = pygame.Rect(0, 0, 0, 0)
+
+        self.small_font = pygame.font.Font(resource_path("fonts/MPLUS1p-Bold.ttf"), 28)
 
         self.back_button = Button(10, 10, 270, 70, "戻る", font)
+
+        self.update_layout(width, height)
 
         self.region_buttons = self.make_choice_buttons(
             [name for name, _ in REGIONS],
@@ -77,6 +105,12 @@ class RankingSubmitScene:
         # 送信後の2つのボタン（成功時と失敗時で役割が変わる）
         self.left_button = Button(width // 2 - 320, 620, 300, 80, "", font)
         self.right_button = Button(width // 2 + 20, 620, 300, 80, "", font)
+
+    def update_layout(self, width, height):
+        self.keyboard.update_layout(width, height)
+        self.nickname_back_button.rect = scale_rect(RANKING_LAYOUT["back"], width, height)
+        self.text_area = scale_rect(RANKING_LAYOUT["text_area"], width, height)
+        self.counter_area = scale_rect(RANKING_LAYOUT["counter"], width, height)
 
     @staticmethod
     def find_region(prefecture):
@@ -197,7 +231,13 @@ class RankingSubmitScene:
 
         pos = event.pos
 
-        if self.step in (STEP_NICKNAME, STEP_REGION, STEP_PREFECTURE, STEP_CONFIRM):
+        if self.step == STEP_NICKNAME:
+            back_button = self.nickname_back_button if self.keyboard_background else self.back_button
+
+            if back_button.clicked(pos):
+                return self.go_back()
+
+        elif self.step in (STEP_REGION, STEP_PREFECTURE, STEP_CONFIRM):
             if self.back_button.clicked(pos):
                 return self.go_back()
 
@@ -260,6 +300,13 @@ class RankingSubmitScene:
 
     def draw(self, screen):
         width, height = screen.get_size()
+
+        self.update_layout(width, height)
+
+        # ニックネーム入力は、入力欄とキーボードが描かれた背景画像に文字を書く
+        if self.step == STEP_NICKNAME and self.keyboard_background is not None:
+            self.draw_nickname_on_background(screen, width, height)
+            return
 
         screen.fill((255, 255, 255))
 
@@ -338,6 +385,44 @@ class RankingSubmitScene:
             self.draw_center(screen, self.nickname_error, 310, (200, 0, 0))
 
         self.keyboard.draw(screen)
+
+    def draw_nickname_on_background(self, screen, width, height):
+        if self.scaled_keyboard_background is None or self.scaled_keyboard_background.get_size() != (width, height):
+            background = self.keyboard_background
+
+            if background.get_size() != (width, height):
+                background = pygame.transform.smoothscale(background, (width, height))
+
+            self.scaled_keyboard_background = background
+
+            # 背景画像に描かれている「0 / 15」を、周りの羊皮紙と同じ色で塗りつぶすための色
+            sample = scale_rect(COUNTER_PATCH_SAMPLE, width, height)
+            self.counter_patch_color = pygame.transform.average_color(background, sample)
+
+        screen.blit(self.scaled_keyboard_background, (0, 0))
+
+        # 入力中のニックネーム
+        text = self.font.render(self.textbox.text, True, NICKNAME_TEXT_COLOR)
+        screen.blit(text, text.get_rect(midleft=(self.text_area.x + 10, self.text_area.centery)))
+
+        # 文字数（背景画像の「0 / 15」を塗りつぶして書き直す）
+        pygame.draw.rect(screen, self.counter_patch_color, self.counter_area, border_radius=6)
+        counter = self.font.render(
+            f"{len(self.textbox.text)} / {NICKNAME_MAX_LENGTH}",
+            True,
+            NICKNAME_TEXT_COLOR
+        )
+        screen.blit(counter, counter.get_rect(center=self.counter_area.center))
+
+        if self.nickname_error:
+            error = self.small_font.render(self.nickname_error, True, (200, 0, 0))
+            screen.blit(error, error.get_rect(center=(width // 2, NICKNAME_ERROR_Y * height / 1080)))
+
+        if DEBUG_HITBOX:
+            self.keyboard.draw(screen, debug=True)
+            pygame.draw.rect(screen, (255, 0, 0), self.nickname_back_button.rect, 2)
+            pygame.draw.rect(screen, (0, 120, 255), self.text_area, 2)
+            pygame.draw.rect(screen, (0, 120, 255), self.counter_area, 2)
 
     def draw_center(self, screen, text, y, color=(0, 0, 0)):
         surface = self.font.render(text, True, color)

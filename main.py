@@ -176,11 +176,19 @@ exam_cell_images.update({
 home_background = load_image("images/background/home.png")
 diffmenu_background = load_image("images/background/diffmenu.jpg", alpha=False)
 
+# ランキング画面の背景
+ranking_background = load_image("images/background/ranking_board.jpg", alpha=False)
+
+# キーボードが描かれた背景（パスコード入力 / ランキング登録のニックネーム入力）
+password_background = load_image("images/background/password_keyboard.jpg", alpha=False)
+ranking_keyboard_background = load_image("images/background/ranking_keyboard.jpg", alpha=False)
+
 # エクストラの選択画面（ボタンは背景画像に描かれている）
 extra_menu_backgrounds = {
     "closed": load_image("images/background/extra_menu.jpg", alpha=False),
     "open": load_image("images/background/extra_menu_book.jpg", alpha=False),
 }
+extra_menu_ranking_button = load_image("images/background/rancking_button.png")
 
 # ノーマルモードの遊び方のスライド
 # buttons はスライド画像（1920x1080）に描かれているボタンの位置
@@ -270,13 +278,14 @@ for world in range(1, LAST_PRACTICE_WORLD + 1):
         extra_book_scenes[world] = BookScene(font, WIDTH, HEIGHT, extra_book_images)
 
 loading_scene = LoadingScene(font)
-password_scene = PasswordScene(font, WIDTH, HEIGHT, EXTRA_PASSWORD)
+password_scene = PasswordScene(font, WIDTH, HEIGHT, EXTRA_PASSWORD, password_background)
 extra_menu_scene = ExtraMenuScene(
     font,
     WIDTH,
     HEIGHT,
     extra_menu_backgrounds,
-    sorted(extra_book_scenes)
+    sorted(extra_book_scenes),
+    extra_menu_ranking_button
 )
 production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)
 
@@ -530,7 +539,7 @@ async def main():
                     current_scene = SCENE_EXTRA_BOOK
 
                 elif action == "ranking":
-                    ranking_scene = RankingScene(font, width, height)
+                    ranking_scene = RankingScene(font, width, height, background=ranking_background)
                     ranking_return_scene = SCENE_EXTRA_MENU
                     current_scene = SCENE_RANKING
 
@@ -647,7 +656,8 @@ async def main():
                         production_result_scene.total_score,
                         make_details(production_results),
                         last_nickname,
-                        last_prefecture
+                        last_prefecture,
+                        keyboard_background=ranking_keyboard_background
                     )
                     current_scene = SCENE_RANKING_SUBMIT
 
@@ -677,7 +687,8 @@ async def main():
                             width,
                             height,
                             highlight_id=submitted["id"],
-                            highlight_rank=submitted["rank"]
+                            highlight_rank=submitted["rank"],
+                            background=ranking_background
                         )
                         ranking_return_scene = SCENE_PRODUCTION_RESULT
                         current_scene = SCENE_RANKING

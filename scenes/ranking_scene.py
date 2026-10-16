@@ -7,8 +7,19 @@ from systems import ranking_api
 from systems.prefectures import prefecture_name
 
 ROWS_PER_PAGE = 15
-ROW_HEIGHT = 52
-FIRST_ROW_Y = 165
+
+# 背景画像（ranking_board）の羊皮紙の内側（横 約78〜1845、縦 約75〜995）に収まるよう並べる
+TITLE_Y = 125
+PAGE_INFO_Y = 178
+ROW_HEIGHT = 46
+FIRST_ROW_Y = 235
+BACK_BUTTON = (110, 95, 250, 65)
+
+# 「前へ」「次へ」はページ表示（「1〜15位」）の左右に置く
+# （羊皮紙の下には紙束や顕微鏡の飾りが描かれているため）
+PAGE_BUTTON_WIDTH = 200
+PAGE_BUTTON_HEIGHT = 56
+PAGE_BUTTON_OFFSET = 300
 
 # 表の列（表の左端からの位置）。順位とスコアは右ぞろえ、他は左ぞろえ
 # スコアは最大6桁（119540点）
@@ -28,9 +39,13 @@ HIGHLIGHT_COLOR = (255, 235, 160)
 
 class RankingScene:
 
-    def __init__(self, font, width, height, highlight_id=None, highlight_rank=None):
-        """highlight_id / highlight_rank: 送信直後に開いた時の、自分の登録"""
+    def __init__(self, font, width, height, highlight_id=None, highlight_rank=None, background=None):
+        """highlight_id / highlight_rank: 送信直後に開いた時の、自分の登録
+        background: 背景画像（無ければ白）
+        """
         self.font = font
+        self.background = background
+        self.scaled_background = None
 
         self.highlight_id = highlight_id
         self.highlight_rank = highlight_rank
@@ -46,9 +61,17 @@ class RankingScene:
         if highlight_rank is not None and highlight_rank > ROWS_PER_PAGE:
             self.page = (min(highlight_rank, ROWS_PER_PAGE * 2) - 1) // ROWS_PER_PAGE
 
-        self.back_button = Button(10, 10, 270, 70, "戻る", font)
-        self.prev_button = Button(width // 2 - 330, height - 100, 300, 70, "前へ", font)
-        self.next_button = Button(width // 2 + 30, height - 100, 300, 70, "次へ", font)
+        self.back_button = Button(*BACK_BUTTON, "戻る", font)
+        button_y = PAGE_INFO_Y - PAGE_BUTTON_HEIGHT // 2
+
+        self.prev_button = Button(
+            width // 2 - PAGE_BUTTON_OFFSET - PAGE_BUTTON_WIDTH, button_y,
+            PAGE_BUTTON_WIDTH, PAGE_BUTTON_HEIGHT, "前へ", font
+        )
+        self.next_button = Button(
+            width // 2 + PAGE_BUTTON_OFFSET, button_y,
+            PAGE_BUTTON_WIDTH, PAGE_BUTTON_HEIGHT, "次へ", font
+        )
         self.reload_button = Button(width // 2 - 150, height // 2 + 60, 300, 80, "再読み込み", font)
 
         self.load()
@@ -116,9 +139,9 @@ class RankingScene:
     def draw(self, screen):
         width, height = screen.get_size()
 
-        screen.fill((255, 255, 255))
+        self.draw_background(screen, width, height)
 
-        self.draw_center(screen, f"ランキング（上位{ROWS_PER_PAGE * 2}名）", 50)
+        self.draw_center(screen, f"ランキング（上位{ROWS_PER_PAGE * 2}名）", TITLE_Y)
         self.back_button.draw(screen)
 
         if self.loading:
@@ -155,7 +178,7 @@ class RankingScene:
         if self.highlight_rank is not None and self.highlight_rank > len(self.rows):
             info += f"　／　あなたの順位: {self.highlight_rank}位"
 
-        self.draw_center(screen, info, 110, (100, 100, 100))
+        self.draw_center(screen, info, PAGE_INFO_Y, (100, 80, 60))
 
     def draw_table(self, screen, width):
         left = width // 2 - TABLE_WIDTH // 2
@@ -179,6 +202,20 @@ class RankingScene:
             self.draw_cell(screen, row["nickname"], left + COLUMN_NICKNAME, center_y)
             self.draw_cell(screen, prefecture_name(row["prefecture"]), left + COLUMN_PREFECTURE, center_y)
             self.draw_cell(screen, row["created_at"], left + COLUMN_DATE, center_y)
+
+    def draw_background(self, screen, width, height):
+        if self.background is None:
+            screen.fill((255, 255, 255))
+            return
+
+        # 画面サイズに合わせた背景は使い回す
+        if self.scaled_background is None or self.scaled_background.get_size() != (width, height):
+            if self.background.get_size() == (width, height):
+                self.scaled_background = self.background
+            else:
+                self.scaled_background = pygame.transform.smoothscale(self.background, (width, height))
+
+        screen.blit(self.scaled_background, (0, 0))
 
     def draw_cell(self, screen, text, x, center_y, right=False):
         surface = self.font.render(str(text), True, (0, 0, 0))

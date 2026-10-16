@@ -45,8 +45,9 @@ LAYOUTS = {
     },
 }
 
-# 背景画像に描かれていないので、コードで描くボタン
-RANKING_BUTTON = (1290, 38, 285, 70)
+# 背景画像に描かれていないので、画像（rancking_button.png）を重ねて描くボタン
+# 画像の縦横比（1000:275）のまま、「図鑑」ボタンの左に並べる
+RANKING_BUTTON = (1290, 33, 284, 78)
 
 # world5 クリア時などのお知らせを表示する高さ（タイトルと練習問題の見出しの間）
 NOTICE_Y = 400
@@ -63,9 +64,10 @@ DEBUG_HITBOX = False
 
 class ExtraMenuScene:
 
-    def __init__(self, font, width, height, backgrounds, book_worlds):
+    def __init__(self, font, width, height, backgrounds, book_worlds, ranking_button_image=None):
         """backgrounds: {"closed": 通常の背景, "open": 図鑑メニューを開いた背景}
         book_worlds: 図鑑がある世界の番号のリスト（図鑑が無い世界のボタンは押せない）
+        ranking_button_image: 「ランキング」ボタンの画像（無ければコードでボタンを描く）
         """
         self.font = font
         self.backgrounds = backgrounds
@@ -77,6 +79,8 @@ class ExtraMenuScene:
         self.book_menu_open = False
 
         self.ranking_button = Button(*RANKING_BUTTON, "ランキングを見る", font)
+        self.ranking_button_image = ranking_button_image
+        self.scaled_ranking_button_image = None
 
         self.select_se = pygame.mixer.Sound(resource_path("sounds/select_diffmenu.ogg"))
 
@@ -165,10 +169,23 @@ class ExtraMenuScene:
             notice = self.font.render(self.notice, True, (0, 130, 0))
             screen.blit(notice, notice.get_rect(center=(width // 2, NOTICE_Y * self.scale_y)))
 
-        self.ranking_button.draw(screen)
+        self.draw_ranking_button(screen)
 
         if DEBUG_HITBOX:
             self.draw_hitboxes(screen)
+
+    def draw_ranking_button(self, screen):
+        if self.ranking_button_image is None:
+            self.ranking_button.draw(screen)
+            return
+
+        rect = self.ranking_button.rect
+
+        # ボタンの大きさに合わせた画像は使い回す
+        if self.scaled_ranking_button_image is None or self.scaled_ranking_button_image.get_size() != rect.size:
+            self.scaled_ranking_button_image = pygame.transform.smoothscale(self.ranking_button_image, rect.size)
+
+        screen.blit(self.scaled_ranking_button_image, rect)
 
     def get_background(self, width, height):
         key = ("open" if self.book_menu_open else "closed", width, height)
@@ -186,7 +203,7 @@ class ExtraMenuScene:
     def draw_hitboxes(self, screen):
         layout = self.current_layout()
 
-        rects = [layout["home"], layout["book"], layout["production"]]
+        rects = [layout["home"], layout["book"], layout["production"], RANKING_BUTTON]
         rects += layout["worlds"] + layout["book_worlds"]
 
         for rect in rects:

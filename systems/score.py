@@ -16,7 +16,7 @@
 # =========================
 
 ALL_CORRECT_BONUS = 5000
-TIME_BONUS_PER_SECOND = 150
+TIME_BONUS_PER_SECOND = 100
 
 # 連続正解数 → 倍率（小数の誤差が出ないよう 10倍した整数で持つ。11 = 1.1倍）
 STREAK_MULTIPLIERS = {

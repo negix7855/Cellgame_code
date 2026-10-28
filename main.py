@@ -188,7 +188,7 @@ extra_menu_backgrounds = {
     "closed": load_image("images/background/extra_menu.jpg", alpha=False),
     "open": load_image("images/background/extra_menu_book.jpg", alpha=False),
 }
-extra_menu_ranking_button = load_image("images/background/rancking_button.png")
+extra_menu_ranking_button = load_image("images/background/ranking_button.png")
 
 # ノーマルモードの遊び方のスライド
 # buttons はスライド画像（1920x1080）に描かれているボタンの位置

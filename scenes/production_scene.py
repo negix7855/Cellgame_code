@@ -24,7 +24,7 @@ CASE_ANSWERS = {
 ANSWER_CHOICES = list(CASE_ANSWERS.values())
 
 # 1問の制限時間（秒）。server/supabase_ranking.sql の time_limit と合わせること
-TIME_LIMIT = 60
+TIME_LIMIT = 100
 
 # 残り時間がこの秒数以下になったら赤で表示する
 TIME_WARNING = 10

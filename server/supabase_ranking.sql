@@ -77,10 +77,10 @@ set search_path = public
 as $$
 declare
     question_count        constant integer := 5;
-    time_limit            constant integer := 60;
+    time_limit            constant integer := 100;
     max_coin_score        constant integer := 5700;
     all_correct_bonus     constant integer := 5000;
-    time_bonus_per_second constant integer := 150;
+    time_bonus_per_second constant integer := 100;
 
     item       jsonb;
     is_correct boolean;

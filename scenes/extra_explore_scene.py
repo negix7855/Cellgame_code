@@ -7,7 +7,7 @@ from scenes.world_scene import WorldScene
 from systems.resource import resource_path
 
 # 練習問題に進むのに必要な、各種類の発見数
-REQUIRED_FOUND_COUNT = 1
+REQUIRED_FOUND_COUNT = 3
 
 BOOK_ICON_SIZE = 150
 BOOK_ICON_GAP = 200

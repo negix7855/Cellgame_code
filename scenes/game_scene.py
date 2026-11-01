@@ -10,7 +10,7 @@ from systems.resource import resource_path
 HINT_DURATION = 100
 
 # この数の異常細胞をヒントなしで見つけるとエクストラのコードを表示する
-EXTRA_CODE_CELL_COUNT = 5
+EXTRA_CODE_CELL_COUNT = 4
 EXTRA_CODE = "EXTRA CODE: CELL9384"
 
 

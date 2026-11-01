@@ -40,7 +40,7 @@ FPS = 60
 BGM_VOLUME = 0.3
 
 # パスワード画面でこの文字列を入力するとエクストラモードが始まる
-EXTRA_PASSWORD = "NOTDONE"
+EXTRA_PASSWORD = "CELL9384"
 
 # エクストラの練習問題の世界の名前（data/practice/world{n}.csv と対応）
 EXTRA_WORLD_NAMES = {
@@ -185,6 +185,24 @@ ranking_background = load_image("images/background/ranking_board.jpg", alpha=Fal
 password_background = load_image("images/background/password_keyboard.jpg", alpha=False)
 ranking_keyboard_background = load_image("images/background/ranking_keyboard.jpg", alpha=False)
 
+# ランキング送信の各段階の背景（ボタンが描かれている）
+ranking_step_backgrounds = {
+    "region": load_image("images/ranking/region.jpg", alpha=False),
+    "prefecture": {
+        region: load_image(f"images/ranking/prefecture_{region}.jpg", alpha=False)
+        for region in range(1, 8)
+    },
+    "confirm": load_image("images/ranking/confirm.jpg", alpha=False),
+    "done": load_image("images/ranking/done.jpg", alpha=False),
+    "plain": ranking_background,
+}
+
+# 本番の結果画面の背景（送信前 / 送信後でボタンの絵が違う）
+production_result_backgrounds = {
+    "unsent": load_image("images/ranking/result_unsent.jpg", alpha=False),
+    "sent": load_image("images/ranking/result_sent.jpg", alpha=False),
+}
+
 # エクストラの選択画面（ボタンは背景画像に描かれている）
 extra_menu_backgrounds = {
     "closed": load_image("images/background/extra_menu.jpg", alpha=False),
@@ -284,11 +302,22 @@ for world in range(1, LAST_PRACTICE_WORLD + 1):
     if extra_book_images:
         extra_book_scenes[world] = BookScene(font, WIDTH, HEIGHT, extra_book_images)
 
-# ホーム画面のヘルプ（images/home_help/help_1.jpg から順に置いたページを表示する）
-home_help_images = load_numbered_images("images/home_help", "help")
+# ホーム画面のヘルプ（images/home_help/help_{ページ番号}.jpg）
+# buttons はスライド画像（1920x1080）に描かれているボタンの位置
+# まだ画像が無いページは飛ばして表示する（2・3ページ目は作成中）
+HOME_HELP_PAGES = {
+    1: {"prev": (25, 950, 175, 100), "next": (1735, 950, 160, 100)},
+    4: {"prev": (35, 940, 300, 110), "close": (1585, 940, 300, 110)},
+}
 
-if home_help_images:
-    home_help_scene = BookScene(font, WIDTH, HEIGHT, home_help_images)
+home_help_slides = [
+    {"image": load_image(f"images/home_help/help_{page}.jpg", alpha=False), "buttons": buttons}
+    for page, buttons in sorted(HOME_HELP_PAGES.items())
+    if os.path.exists(resource_path(f"images/home_help/help_{page}.jpg"))
+]
+
+if home_help_slides:
+    home_help_scene = SlideViewer(home_help_slides)
 else:
     home_help_scene = MessageScene(font, WIDTH, HEIGHT, "ヘルプは準備中です")
 
@@ -452,8 +481,8 @@ async def main():
                         current_scene = SCENE_NORMAL_HELP
 
                 elif result == "help":
-                    if isinstance(home_help_scene, BookScene):
-                        home_help_scene.current_page = 0
+                    if isinstance(home_help_scene, SlideViewer):
+                        home_help_scene.open()
 
                     current_scene = SCENE_HOME_HELP
 
@@ -667,7 +696,8 @@ async def main():
                             font,
                             width,
                             height,
-                            production_results
+                            production_results,
+                            production_result_backgrounds
                         )
                         current_scene = SCENE_PRODUCTION_RESULT
 
@@ -683,7 +713,8 @@ async def main():
                         make_details(production_results),
                         last_nickname,
                         last_prefecture,
-                        keyboard_background=ranking_keyboard_background
+                        keyboard_background=ranking_keyboard_background,
+                        step_backgrounds=ranking_step_backgrounds
                     )
                     current_scene = SCENE_RANKING_SUBMIT
 
@@ -732,10 +763,13 @@ async def main():
                     current_scene = ranking_return_scene
 
             elif current_scene == SCENE_HOME_HELP:
-                result = home_help_scene.handle_event(event)
+                if isinstance(home_help_scene, SlideViewer):
+                    result = home_help_scene.handle_event(event, width, height)
+                else:
+                    result = home_help_scene.handle_event(event)
 
-                # 図鑑形式（BookScene）は "menu"、準備中の表示（MessageScene）は "back" を返す
-                if result in ("menu", "back"):
+                # スライドは「閉じる」で "close"、準備中の表示は「戻る」で "back" を返す
+                if result in ("close", "back"):
                     current_scene = SCENE_HOME
 
             elif current_scene == SCENE_NORMAL_HELP:

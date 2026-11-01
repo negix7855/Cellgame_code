@@ -36,6 +36,54 @@ NICKNAME_ERROR_Y = 483
 # 背景画像の「0 / 15」を塗りつぶす色を取る場所（文字数の真下の、何も描かれていない羊皮紙）
 COUNTER_PATCH_SAMPLE = (1330, 482, 100, 16)
 
+# =========================
+# 背景画像（images/ranking）に描かれたボタンの位置 (x, y, w, h)
+# 画像のボタンの枠を自動で検出した範囲
+# =========================
+
+# 「戻る」（地方・都道府県・確認の画像に共通）
+STEP_BACK_BUTTON = (80, 85, 277, 93)
+
+# 地方（region.jpg）。REGIONS と同じ順番
+REGION_BUTTONS = [
+    (208, 379, 337, 107), (579, 379, 337, 107), (950, 379, 337, 107), (1321, 379, 337, 107),
+    (208, 566, 337, 107), (579, 566, 337, 107), (950, 566, 337, 107), (1321, 566, 337, 107),
+]
+
+# 都道府県（prefecture_{地方の番号}.jpg）。地方の番号は REGIONS の順番（東北 = 1 ... 九州・沖縄 = 7）
+_PREFECTURE_GRID = [
+    (423, 352, 338, 107), (794, 352, 337, 107), (1165, 352, 337, 107),
+    (423, 522, 338, 107), (794, 522, 337, 107), (1165, 522, 337, 107),
+    (423, 692, 338, 107), (794, 692, 337, 107), (1165, 692, 337, 107),
+]
+
+PREFECTURE_BUTTONS = {
+    # 東北だけ2段で、ボタンの位置が他と違う
+    1: [
+        (412, 395, 337, 107), (782, 395, 338, 107), (1153, 396, 338, 107),
+        (412, 601, 337, 107), (782, 601, 338, 107), (1154, 601, 337, 107),
+    ],
+    2: _PREFECTURE_GRID[:7],
+    3: _PREFECTURE_GRID[:9],
+    4: _PREFECTURE_GRID[:7],
+    5: _PREFECTURE_GRID[:5],
+    6: _PREFECTURE_GRID[:4],
+    7: _PREFECTURE_GRID[:8],
+}
+
+# 確認（confirm.jpg）の「送信する」
+CONFIRM_SEND_BUTTON = (802, 707, 322, 103)
+
+# 送信完了（done.jpg）の「ランキングを見る」「結果画面に戻る」
+DONE_LEFT_BUTTON = (557, 691, 331, 97)
+DONE_RIGHT_BUTTON = (1014, 691, 331, 97)
+
+# 前回選んだ地方・都道府県のボタンに重ねる色
+SELECTED_OVERLAY = (80, 180, 255, 90)
+
+# 背景画像の上に書く文字の色
+STEP_TEXT_COLOR = (60, 35, 20)
+
 # 当たり判定を赤枠で表示する（位置合わせの確認用）
 DEBUG_HITBOX = False
 
@@ -47,9 +95,13 @@ DEBUG_HITBOX = False
 
 class RankingSubmitScene:
 
-    def __init__(self, font, width, height, score, details, nickname="", prefecture=None, keyboard_background=None):
+    def __init__(self, font, width, height, score, details, nickname="", prefecture=None,
+                 keyboard_background=None, step_backgrounds=None):
         """nickname / prefecture: 前回送信した時の入力（起動中だけ引き継ぐ）
         keyboard_background: ニックネーム入力の背景（入力欄とキーボードが描かれた画像）
+        step_backgrounds: 各段階の背景
+            {"region", "prefecture": {地方の番号: 画像}, "confirm", "done", "plain"}
+            （無ければ白い背景にボタンを描く）
         """
         self.font = font
         self.width = width
@@ -106,6 +158,17 @@ class RankingSubmitScene:
         self.left_button = Button(width // 2 - 320, 620, 300, 80, "", font)
         self.right_button = Button(width // 2 + 20, 620, 300, 80, "", font)
 
+        self.step_backgrounds = step_backgrounds
+        self.scaled_step_backgrounds = {}
+
+        # 背景画像を使う時は、ボタンを画像に描かれた位置に合わせる
+        if step_backgrounds is not None:
+            self.back_button.rect = scale_rect(STEP_BACK_BUTTON, width, height)
+            self.send_button.rect = scale_rect(CONFIRM_SEND_BUTTON, width, height)
+
+            for button, rect in zip(self.region_buttons, REGION_BUTTONS):
+                button.rect = scale_rect(rect, width, height)
+
     def update_layout(self, width, height):
         self.keyboard.update_layout(width, height)
         self.nickname_back_button.rect = scale_rect(RANKING_LAYOUT["back"], width, height)
@@ -161,6 +224,11 @@ class RankingSubmitScene:
             columns=3,
             top=300
         )
+
+        if self.step_backgrounds is not None:
+            for button, rect in zip(self.prefecture_buttons, PREFECTURE_BUTTONS[region_index]):
+                button.rect = scale_rect(rect, self.width, self.height)
+
         self.step = STEP_PREFECTURE
 
     def go_back(self):
@@ -202,6 +270,10 @@ class RankingSubmitScene:
             self.left_button.text = "ランキングを見る"
             self.right_button.text = "結果画面に戻る"
 
+            if self.step_backgrounds is not None:
+                self.left_button.rect = scale_rect(DONE_LEFT_BUTTON, self.width, self.height)
+                self.right_button.rect = scale_rect(DONE_RIGHT_BUTTON, self.width, self.height)
+
         except Exception as e:
             if isinstance(e, ranking_api.RankingError):
                 self.error_message = str(e)
@@ -212,6 +284,10 @@ class RankingSubmitScene:
 
             self.left_button.text = "もう一度送信"
             self.right_button.text = "やめる"
+
+            # 失敗時の画像は無いので、ボタンはコードで描く位置に戻す
+            self.left_button.rect = pygame.Rect(self.width // 2 - 320, 620, 300, 80)
+            self.right_button.rect = pygame.Rect(self.width // 2 + 20, 620, 300, 80)
 
     # =========================
     # イベント処理
@@ -306,6 +382,11 @@ class RankingSubmitScene:
         # ニックネーム入力は、入力欄とキーボードが描かれた背景画像に文字を書く
         if self.step == STEP_NICKNAME and self.keyboard_background is not None:
             self.draw_nickname_on_background(screen, width, height)
+            return
+
+        # 地方・都道府県・確認・送信の各段階は、ボタンが描かれた背景画像に文字を書く
+        if self.step_backgrounds is not None:
+            self.draw_step_on_background(screen, width, height)
             return
 
         screen.fill((255, 255, 255))
@@ -423,6 +504,103 @@ class RankingSubmitScene:
             pygame.draw.rect(screen, (255, 0, 0), self.nickname_back_button.rect, 2)
             pygame.draw.rect(screen, (0, 120, 255), self.text_area, 2)
             pygame.draw.rect(screen, (0, 120, 255), self.counter_area, 2)
+
+    def get_step_background(self, width, height):
+        """今の段階の背景画像（画面サイズに合わせたもの）"""
+        if self.step == STEP_REGION:
+            key = "region"
+        elif self.step == STEP_PREFECTURE:
+            key = ("prefecture", self.region_index)
+        elif self.step == STEP_CONFIRM:
+            key = "confirm"
+        elif self.step == STEP_DONE:
+            key = "done"
+        else:
+            key = "plain"
+
+        if key not in self.scaled_step_backgrounds:
+            if isinstance(key, tuple):
+                image = self.step_backgrounds["prefecture"][key[1]]
+            else:
+                image = self.step_backgrounds[key]
+
+            if image.get_size() != (width, height):
+                image = pygame.transform.smoothscale(image, (width, height))
+
+            self.scaled_step_backgrounds[key] = image
+
+        return self.scaled_step_backgrounds[key]
+
+    def draw_step_on_background(self, screen, width, height):
+        screen.blit(self.get_step_background(width, height), (0, 0))
+
+        if self.step == STEP_REGION:
+            if self.region_index is not None:
+                self.draw_selected(screen, self.region_buttons[self.region_index].rect)
+
+        elif self.step == STEP_PREFECTURE:
+            codes = REGIONS[self.region_index][1]
+
+            for code, button in zip(codes, self.prefecture_buttons):
+                if code == self.prefecture:
+                    self.draw_selected(screen, button.rect)
+
+        elif self.step == STEP_CONFIRM:
+            self.draw_center(screen, f"ニックネーム: {self.textbox.text}", 390, STEP_TEXT_COLOR)
+            self.draw_center(screen, f"都道府県: {prefecture_name(self.prefecture)}", 470, STEP_TEXT_COLOR)
+            self.draw_center(screen, f"スコア: {self.score}点", 550, STEP_TEXT_COLOR)
+
+        elif self.step == STEP_SENDING:
+            dots = "." * (pygame.time.get_ticks() // 300 % 4)
+            self.draw_center(screen, "ランキングに送信", 150, STEP_TEXT_COLOR)
+            self.draw_center(screen, f"送信中{dots}", height // 2, STEP_TEXT_COLOR)
+
+        elif self.step == STEP_DONE:
+            rank = self.result["rank"]
+
+            if rank <= RANKING_SIZE:
+                message = f"{rank}位にランクインしました！"
+            else:
+                message = f"あなたの順位は{rank}位です（上位{RANKING_SIZE}位まで表示されます）"
+
+            self.draw_center(screen, "送信しました", 330, (0, 130, 0))
+            self.draw_center(screen, message, 430, (190, 100, 0))
+            self.draw_center(screen, f"スコア: {self.result['score']}点", 530, STEP_TEXT_COLOR)
+
+        elif self.step == STEP_FAILED:
+            self.draw_center(screen, "ランキングに送信", 150, STEP_TEXT_COLOR)
+            self.draw_center(screen, "送信できませんでした", 350, (200, 0, 0))
+            self.draw_center(screen, self.error_message, 430, STEP_TEXT_COLOR)
+
+            self.left_button.draw(screen)
+            self.right_button.draw(screen)
+
+        if DEBUG_HITBOX:
+            self.draw_step_hitboxes(screen)
+
+    def draw_selected(self, screen, rect):
+        """前回選んだボタンに、半透明の色を重ねる"""
+        overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.rect(overlay, SELECTED_OVERLAY, overlay.get_rect(), border_radius=18)
+        screen.blit(overlay, rect.topleft)
+
+    def draw_step_hitboxes(self, screen):
+        rects = []
+
+        if self.step in (STEP_REGION, STEP_PREFECTURE, STEP_CONFIRM):
+            rects.append(self.back_button.rect)
+
+        if self.step == STEP_REGION:
+            rects += [b.rect for b in self.region_buttons]
+        elif self.step == STEP_PREFECTURE:
+            rects += [b.rect for b in self.prefecture_buttons]
+        elif self.step == STEP_CONFIRM:
+            rects.append(self.send_button.rect)
+        elif self.step == STEP_DONE:
+            rects += [self.left_button.rect, self.right_button.rect]
+
+        for rect in rects:
+            pygame.draw.rect(screen, (255, 0, 0), rect, 3)
 
     def draw_center(self, screen, text, y, color=(0, 0, 0)):
         surface = self.font.render(text, True, color)

@@ -333,7 +333,13 @@ extra_menu_scene = ExtraMenuScene(
     sorted(extra_book_scenes),
     extra_menu_ranking_button
 )
-production_intro_scene = ProductionIntroScene(font, WIDTH, HEIGHT, PRODUCTION_QUESTION_COUNT)
+production_intro_scene = ProductionIntroScene(
+    font,
+    WIDTH,
+    HEIGHT,
+    PRODUCTION_QUESTION_COUNT,
+    load_image("images/background/production_intro.jpg", alpha=False)
+)
 
 
 def create_game_scene(generated, stage, width):

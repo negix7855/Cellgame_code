@@ -14,6 +14,7 @@ from scenes.extra_practice_scene import ExtraPracticeScene
 from scenes.game_scene import GameScene
 from scenes.home_scene import HomeScene
 from scenes.loading_scene import LoadingScene
+from scenes.message_scene import MessageScene
 from scenes.password_scene import PasswordScene
 from scenes.production_intro_scene import ProductionIntroScene
 from scenes.production_result_scene import ProductionResultScene
@@ -89,6 +90,7 @@ SCENE_EXTRA_BOOK = 12
 SCENE_EXTRA_MENU = 13
 SCENE_RANKING_SUBMIT = 14
 SCENE_RANKING = 15
+SCENE_HOME_HELP = 16
 
 # current_scene = SCENE_HOME
 current_scene = SCENE_HOME
@@ -255,17 +257,22 @@ diff_menu_scene = DiffMenuScene(font, WIDTH, HEIGHT, diffmenu_background)
 book_scene = BookScene(font, WIDTH, HEIGHT, book_images)
 
 
-def load_extra_book_images(world):
-    """images/extra_book/world{n}/book_1.jpg から順に、存在するページを読み込む"""
+def load_numbered_images(folder, prefix):
+    """{folder}/{prefix}_1.jpg から順に、存在する画像を読み込む"""
     images = []
 
     while True:
-        path = f"images/extra_book/world{world}/book_{len(images) + 1}.jpg"
+        path = f"{folder}/{prefix}_{len(images) + 1}.jpg"
 
         if not os.path.exists(resource_path(path)):
             return images
 
         images.append(load_image(path, alpha=False))
+
+
+def load_extra_book_images(world):
+    """images/extra_book/world{n}/book_1.jpg から順に、存在するページを読み込む"""
+    return load_numbered_images(f"images/extra_book/world{world}", "book")
 
 
 # エクストラの図鑑（世界ごと。画像が1枚もない世界は図鑑なし）
@@ -276,6 +283,14 @@ for world in range(1, LAST_PRACTICE_WORLD + 1):
 
     if extra_book_images:
         extra_book_scenes[world] = BookScene(font, WIDTH, HEIGHT, extra_book_images)
+
+# ホーム画面のヘルプ（images/home_help/help_1.jpg から順に置いたページを表示する）
+home_help_images = load_numbered_images("images/home_help", "help")
+
+if home_help_images:
+    home_help_scene = BookScene(font, WIDTH, HEIGHT, home_help_images)
+else:
+    home_help_scene = MessageScene(font, WIDTH, HEIGHT, "ヘルプは準備中です")
 
 loading_scene = LoadingScene(font)
 password_scene = PasswordScene(font, WIDTH, HEIGHT, EXTRA_PASSWORD, password_background)
@@ -435,6 +450,17 @@ async def main():
                         # 初回は遊び方を見せてから難易度選択へ
                         normal_help_slides.open()
                         current_scene = SCENE_NORMAL_HELP
+
+                elif result == "help":
+                    if isinstance(home_help_scene, BookScene):
+                        home_help_scene.current_page = 0
+
+                    current_scene = SCENE_HOME_HELP
+
+                elif result == "ranking":
+                    ranking_scene = RankingScene(font, width, height, background=ranking_background)
+                    ranking_return_scene = SCENE_HOME
+                    current_scene = SCENE_RANKING
 
                 elif result == "extra":
                     current_scene = SCENE_PASSWORD
@@ -705,6 +731,13 @@ async def main():
                     ranking_scene = None
                     current_scene = ranking_return_scene
 
+            elif current_scene == SCENE_HOME_HELP:
+                result = home_help_scene.handle_event(event)
+
+                # 図鑑形式（BookScene）は "menu"、準備中の表示（MessageScene）は "back" を返す
+                if result in ("menu", "back"):
+                    current_scene = SCENE_HOME
+
             elif current_scene == SCENE_NORMAL_HELP:
                 result = normal_help_slides.handle_event(event, width, height)
 
@@ -798,6 +831,9 @@ async def main():
 
         elif current_scene == SCENE_NORMAL_HELP:
             normal_help_slides.draw(screen)
+
+        elif current_scene == SCENE_HOME_HELP:
+            home_help_scene.draw(screen)
 
         pygame.display.flip()
 
